@@ -2,7 +2,7 @@
 
 Landing page + biblioteca de ebooks con captura de leads y panel de administración
 propio. Next.js (App Router) + TypeScript + Tailwind CSS v4 + Framer Motion + Supabase
-+ Resend.
++ Gmail (para el envío de mails).
 
 ## 1. Setup de Supabase (plan free)
 
@@ -65,13 +65,20 @@ etc.) ahora se editan desde `/admin → Configuración`. Si tu proyecto ya tení
 [`supabase/migration_02_site_settings_full.sql`](supabase/migration_02_site_settings_full.sql)
 en el SQL Editor — usa `add column if not exists`, no borra nada.
 
-## 2. Setup de Resend (plan free)
+## 2. Setup de Gmail (gratis)
 
-- **Límites del plan free:** 3.000 mails/mes, 100 mails/día. Si algún mes se supera
-  (ej. pico de ventas), esos mails puntuales se mandan a mano desde la casilla normal,
-  usando el mismo texto de la plantilla.
-- Creá cuenta en [resend.com](https://resend.com), verificá un dominio (o usá el de
-  pruebas mientras arrancás) y generá una API key.
+Todos los mails (capítulo gratis, plantillas manuales, aviso de pago confirmado) se
+mandan desde una cuenta de Gmail real, así llegan con el remitente que la gente
+reconoce en vez de un dominio desconocido.
+
+- **Límite:** ~500 mails cada 24hs en una cuenta de Gmail normal (2.000/día si es
+  Google Workspace). Si algún mes se supera (ej. pico de ventas), esos mails puntuales
+  se mandan a mano desde la casilla normal, usando el mismo texto de la plantilla.
+- Necesitás **verificación en 2 pasos activada** en la cuenta de Gmail que vayan a usar
+  (Google no deja generar contraseñas de aplicación sin esto).
+- Andá a [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords),
+  generá una contraseña de aplicación para "Mail" (te da un código de 16 letras) y
+  usala como `GMAIL_APP_PASSWORD` — **no** es la contraseña normal de la cuenta.
 
 ## 3. Variables de entorno
 
@@ -86,8 +93,9 @@ cp .env.example .env.local
 | `SUPABASE_URL` | URL del proyecto de Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key (solo servidor, nunca `NEXT_PUBLIC_`) |
 | `ADMIN_SESSION_SECRET` | Secreto para firmar la sesión del admin. Generar con `openssl rand -base64 32` |
-| `RESEND_API_KEY` | API key de Resend |
-| `RESEND_FROM_EMAIL` | Remitente verificado en Resend |
+| `GMAIL_USER` | Cuenta de Gmail desde la que se manda todo |
+| `GMAIL_APP_PASSWORD` | Contraseña de aplicación de esa cuenta (no la contraseña normal) |
+| `GMAIL_FROM_NAME` | Nombre que se muestra como remitente (opcional, ej. "nmtech solutions") |
 
 En Vercel, cargar las mismas variables en **Project Settings → Environment Variables**.
 

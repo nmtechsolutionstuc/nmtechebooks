@@ -1,25 +1,34 @@
 import "server-only";
-import { Resend } from "resend";
+import nodemailer, { type Transporter } from "nodemailer";
 
 /**
- * Plan free de Resend (verificado al momento de armar este proyecto):
- *   - 3.000 mails/mes
- *   - 100 mails/día
- * Si en algún mes se supera ese límite (ej. pico de ventas), no hace falta
- * automatizar nada nuevo: esos mails puntuales se mandan a mano desde la
- * casilla normal, usando el mismo texto de la plantilla que se ve en /admin.
+ * Se manda todo desde la cuenta de Gmail real de nmtech solutions (así los
+ * mails llegan con el remitente que la gente ya conoce, no desde un dominio
+ * desconocido). Gratis, usando el SMTP de Gmail con una "contraseña de
+ * aplicación" (no la contraseña normal de la cuenta).
+ *
+ * Límite del plan gratuito de Gmail: ~500 mails cada 24hs (cuenta personal).
+ * Si algún día se supera (ej. pico de ventas), esos mails puntuales se
+ * mandan a mano desde la casilla normal, usando el mismo texto de la
+ * plantilla que se ve en /admin.
  */
 
-let cachedResend: Resend | null = null;
+let cachedTransporter: Transporter | null = null;
 
-function getResendClient(): Resend {
-  if (cachedResend) return cachedResend;
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    throw new Error("Falta la variable de entorno RESEND_API_KEY");
+function getTransporter(): Transporter {
+  if (cachedTransporter) return cachedTransporter;
+
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) {
+    throw new Error("Faltan las variables de entorno GMAIL_USER / GMAIL_APP_PASSWORD");
   }
-  cachedResend = new Resend(apiKey);
-  return cachedResend;
+
+  cachedTransporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user, pass },
+  });
+  return cachedTransporter;
 }
 
 /** Escapa HTML para evitar que un dato variable (nombre del lead, título del ebook) inyecte markup en el mail. */
@@ -48,14 +57,14 @@ export async function sendMail({
   subject: string;
   html: string;
 }) {
-  const resend = getResendClient();
-  const from = process.env.RESEND_FROM_EMAIL;
-  if (!from) {
-    throw new Error("Falta la variable de entorno RESEND_FROM_EMAIL");
-  }
+  const transporter = getTransporter();
+  const user = process.env.GMAIL_USER;
+  const displayName = process.env.GMAIL_FROM_NAME || "nmtech solutions";
 
-  const { error } = await resend.emails.send({ from, to, subject, html });
-  if (error) {
-    throw new Error(`Error enviando mail con Resend: ${error.message}`);
-  }
+  await transporter.sendMail({
+    from: `"${displayName}" <${user}>`,
+    to,
+    subject,
+    html,
+  });
 }
