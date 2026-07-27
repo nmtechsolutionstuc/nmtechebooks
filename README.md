@@ -1,36 +1,127 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# nmtech solutions — Biblioteca de Ebooks
 
-## Getting Started
+Landing page + biblioteca de ebooks con captura de leads y panel de administración
+propio. Next.js (App Router) + TypeScript + Tailwind CSS v4 + Framer Motion + Supabase
++ Resend.
 
-First, run the development server:
+## 1. Setup de Supabase (plan free)
+
+1. Creá un proyecto nuevo en [supabase.com](https://supabase.com) (plan free).
+2. En **SQL Editor**, corré todo el contenido de [`supabase/schema.sql`](supabase/schema.sql).
+3. En **Storage**, creá tres buckets:
+   - `covers` → **público** (portadas de ebooks).
+   - `ebook-files` → **privado** (PDFs completos; nunca se expone una URL fija, se
+     generan links firmados y temporales desde el servidor).
+   - `site-assets` → **público** (imagen del hero y otros assets generales del sitio,
+     configurables desde `/admin → Configuración`).
+
+   Se puede hacer a mano desde el dashboard, o corriendo (con `.env.local` ya
+   completado con `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`):
+   ```bash
+   node scripts/create-buckets.mjs
+   ```
+4. En **Project Settings → API**, copiá `Project URL` y la `service_role` key
+   (¡nunca la `anon` key para esto, y nunca subir la service_role key a git!).
+
+### Crear los usuarios admin
+
+No hay un formulario de registro (a propósito, son solo ustedes dos). Generá el hash
+de la contraseña y lo insertás a mano:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+node scripts/hash-password.js "tu-contraseña"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Copiá el hash que te imprime y corré en el SQL Editor de Supabase:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```sql
+insert into admin_users (username, password_hash)
+values ('tu-usuario', 'HASH_GENERADO');
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Repetir para el segundo usuario.
 
-## Learn More
+### Cargar un ebook nuevo
 
-To learn more about Next.js, take a look at the following resources:
+Se hace directo en la tabla `ebooks` desde el Table Editor de Supabase (sin tocar
+código): completá título, descripciones, `promo_message` (el mensaje corto y
+persuasivo que se muestra en la sección destacada del Home, ej. "Dejá de tenerle
+miedo a la IA y empezá a usarla a tu favor"), categoría, `cover_image_url` (subida
+al bucket `covers`), precios, links de Hotmart, datos bancarios y
+`private_file_path` (la ruta del PDF dentro del bucket privado `ebook-files`, ej.
+`mi-ebook/completo.pdf`). Marcá `featured = true` en el que quieras que aparezca
+como el ebook destacado del Home (si no marcás ninguno, se usa el más reciente).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Una vez cargado, el título, las descripciones, el `promo_message`, la categoría, los
+precios y la portada se pueden seguir editando después desde `/admin → Ebooks`, sin
+volver a tocar Supabase.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Si ya corriste `schema.sql` antes (proyecto existente)
 
-## Deploy on Vercel
+Los textos y la visibilidad de cada sección del sitio (hero, "por qué nuestros
+ebooks", "quiénes somos", contacto, afiliados, footer, temáticas del formulario,
+etc.) ahora se editan desde `/admin → Configuración`. Si tu proyecto ya tenía
+`site_settings` creada con las 3 columnas originales, corré también
+[`supabase/migration_02_site_settings_full.sql`](supabase/migration_02_site_settings_full.sql)
+en el SQL Editor — usa `add column if not exists`, no borra nada.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 2. Setup de Resend (plan free)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Límites del plan free:** 3.000 mails/mes, 100 mails/día. Si algún mes se supera
+  (ej. pico de ventas), esos mails puntuales se mandan a mano desde la casilla normal,
+  usando el mismo texto de la plantilla.
+- Creá cuenta en [resend.com](https://resend.com), verificá un dominio (o usá el de
+  pruebas mientras arrancás) y generá una API key.
+
+## 3. Variables de entorno
+
+Copiá `.env.example` a `.env.local` y completá:
+
+```bash
+cp .env.example .env.local
+```
+
+| Variable | Descripción |
+|---|---|
+| `SUPABASE_URL` | URL del proyecto de Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (solo servidor, nunca `NEXT_PUBLIC_`) |
+| `ADMIN_SESSION_SECRET` | Secreto para firmar la sesión del admin. Generar con `openssl rand -base64 32` |
+| `RESEND_API_KEY` | API key de Resend |
+| `RESEND_FROM_EMAIL` | Remitente verificado en Resend |
+
+En Vercel, cargar las mismas variables en **Project Settings → Environment Variables**.
+
+## 4. Desarrollo local
+
+```bash
+npm install
+npm run dev
+```
+
+Abrir [http://localhost:3000](http://localhost:3000). El panel de administración está
+en `/admin` (redirige a `/admin/login` si no hay sesión).
+
+## 5. Notas de seguridad
+
+- El archivo completo del ebook nunca se sirve desde una URL pública fija: se genera
+  un link firmado y temporal (`src/lib/storage.ts`) recién cuando un lead tiene el pago
+  confirmado, y se manda por mail automáticamente.
+- Las rutas `/admin/*` y `/api/admin/*` están protegidas por `src/proxy.ts` (el proxy/middleware de Next.js), que valida
+  la cookie de sesión (httpOnly, secure en producción) en el servidor — no alcanza con
+  ocultar botones en el frontend.
+- El formulario de captura de leads y el login de admin tienen rate limiting (tabla
+  `rate_limit_log` en Supabase) y el formulario público tiene un honeypot anti-bots.
+- Todo dato variable insertado en mails (`{nombre}`, `{ebook}`) se escapa antes de
+  mandarse, para evitar inyección de HTML a través del nombre de un lead.
+
+## 6. Estructura
+
+```
+src/app/               páginas públicas + rutas de API
+src/app/admin/          panel de administración (protegido), incluye edición de ebooks (textos + portada)
+src/components/         componentes de UI reutilizables
+src/lib/                Supabase, auth, mail, validación, tipos
+src/proxy.ts             protege /admin y /api/admin (valida la sesión en cada request)
+supabase/schema.sql      esquema de base de datos
+scripts/hash-password.js utilidad para generar hashes de admin
+```

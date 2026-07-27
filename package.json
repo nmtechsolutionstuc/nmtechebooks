@@ -1,5 +1,5 @@
 {
-  "name": "scaffold-tmp",
+  "name": "nmtech-solutions-ebooks",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,9 +9,16 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.8",
+    "bcryptjs": "^3.0.3",
+    "framer-motion": "^12.42.2",
+    "jose": "^6.2.4",
+    "lucide-react": "^1.27.0",
     "next": "16.2.12",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "resend": "^6.18.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
