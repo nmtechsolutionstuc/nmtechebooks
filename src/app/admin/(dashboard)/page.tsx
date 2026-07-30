@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import type { Lead, LeadStatus, MailTemplate, PaymentMethod } from "@/lib/types";
+import type { Lead, LeadStatus, MailLogEntry, MailTemplate, PaymentMethod } from "@/lib/types";
 
 type LeadRow = Lead & { ebooks: { id: string; title: string; slug: string } | null };
 
@@ -9,6 +9,12 @@ const STATUS_LABELS: Record<LeadStatus, string> = {
   nuevo: "Nuevo",
   contactado: "Contactado",
   comprado: "Comprado",
+};
+
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  hotmart: "Hotmart",
+  transferencia: "Transferencia",
+  tiendanube: "Tiendanube",
 };
 
 const EMPTY_EDIT_FORM = { name: "", email: "", topic: "", interests: "" };
@@ -26,6 +32,8 @@ export default function AdminLeadsPage() {
   const [actionMessage, setActionMessage] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
+  const [mailLog, setMailLog] = useState<MailLogEntry[]>([]);
+  const [mailLogLoading, setMailLogLoading] = useState(false);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -61,6 +69,14 @@ export default function AdminLeadsPage() {
 
   const selectedLead = leads.find((l) => l.id === selectedLeadId) ?? null;
 
+  const fetchMailLog = useCallback(async (leadId: string) => {
+    setMailLogLoading(true);
+    const res = await fetch(`/api/admin/leads/${leadId}/mail-log`);
+    const data = await res.json();
+    setMailLog(res.ok ? data.mailLog : []);
+    setMailLogLoading(false);
+  }, []);
+
   function selectLead(lead: LeadRow) {
     setSelectedLeadId(lead.id);
     setEditForm({
@@ -69,7 +85,10 @@ export default function AdminLeadsPage() {
       topic: lead.topic,
       interests: lead.interests,
     });
+    // Precarga el medio de pago que ya eligió el cliente en el sitio público (si eligió alguno).
+    setPaymentMethod(lead.payment_method ?? "hotmart");
     setActionMessage("");
+    fetchMailLog(lead.id);
   }
 
   async function updateLead(id: string, body: Record<string, unknown>) {
@@ -90,6 +109,7 @@ export default function AdminLeadsPage() {
     if (data.warning) setActionMessage(data.warning);
     else setActionMessage("Listo.");
     fetchLeads();
+    fetchMailLog(id);
   }
 
   async function handleSaveEdit() {
@@ -134,6 +154,7 @@ export default function AdminLeadsPage() {
     const data = await res.json();
     setActionLoading(false);
     setActionMessage(res.ok ? "Mail enviado." : data.error ?? "Ocurrió un error.");
+    if (res.ok) fetchMailLog(selectedLead.id);
   }
 
   return (
@@ -273,7 +294,9 @@ export default function AdminLeadsPage() {
 
           <p className="text-[#D7E2EA]/50 text-xs">
             Quiere: {selectedLead.intent === "comprar" ? "Comprar directamente" : "Leer capítulo gratis"} ·
-            Ebook: {selectedLead.ebooks?.title ?? "—"} · Estado: {STATUS_LABELS[selectedLead.status]}
+            Ebook: {selectedLead.ebooks?.title ?? "—"} · Estado: {STATUS_LABELS[selectedLead.status]} · Medio
+            de pago elegido:{" "}
+            {selectedLead.payment_method ? PAYMENT_METHOD_LABELS[selectedLead.payment_method] : "—"}
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -343,6 +366,7 @@ export default function AdminLeadsPage() {
                 >
                   <option value="hotmart">Hotmart</option>
                   <option value="transferencia">Transferencia</option>
+                  <option value="tiendanube">Tiendanube</option>
                 </select>
               </div>
               <button
@@ -361,6 +385,34 @@ export default function AdminLeadsPage() {
           </div>
 
           {actionMessage && <p className="text-sm text-[#D7E2EA]/80">{actionMessage}</p>}
+
+          <div className="flex flex-col gap-2 border-t border-[#D7E2EA]/10 pt-4">
+            <span className="text-xs uppercase text-[#D7E2EA]/60">
+              Historial de mails enviados a este lead
+            </span>
+            {mailLogLoading ? (
+              <p className="text-[#D7E2EA]/50 text-sm">Cargando...</p>
+            ) : mailLog.length === 0 ? (
+              <p className="text-[#D7E2EA]/50 text-sm">Todavía no se le mandó ningún mail.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {mailLog.map((entry) => (
+                  <li
+                    key={entry.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#D7E2EA]/10 px-3 py-2 text-sm"
+                  >
+                    <div>
+                      <p className="text-[#D7E2EA]">{entry.subject}</p>
+                      <p className="text-[#D7E2EA]/50 text-xs">{entry.template_name}</p>
+                    </div>
+                    <span className="text-[#D7E2EA]/50 text-xs shrink-0">
+                      {new Date(entry.sent_at).toLocaleString("es-AR")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
     </div>

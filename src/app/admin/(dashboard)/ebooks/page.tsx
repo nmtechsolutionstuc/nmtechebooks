@@ -28,6 +28,7 @@ export default function AdminEbooksPage() {
   const [createMessage, setCreateMessage] = useState("");
   const [createSaving, setCreateSaving] = useState(false);
   const [uploadingChapterPdf, setUploadingChapterPdf] = useState(false);
+  const [uploadingFullFile, setUploadingFullFile] = useState(false);
 
   async function fetchEbooks() {
     const res = await fetch("/api/admin/ebooks");
@@ -104,10 +105,12 @@ export default function AdminEbooksPage() {
         current_price: Number(form.current_price),
         hotmart_sale_url: form.hotmart_sale_url,
         hotmart_affiliate_url: form.hotmart_affiliate_url,
+        tiendanube_sale_url: form.tiendanube_sale_url,
         bank_alias: form.bank_alias,
         bank_cbu: form.bank_cbu,
         bank_name: form.bank_name,
         featured: form.featured,
+        published: form.published,
       }),
     });
     const data = await res.json();
@@ -198,6 +201,31 @@ export default function AdminEbooksPage() {
     fetchEbooks();
   }
 
+  async function handleFullFileUpload(file: File) {
+    if (!selected) return;
+    setUploadingFullFile(true);
+    setMessage("");
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch(`/api/admin/ebooks/${selected.id}/full-file`, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json();
+    setUploadingFullFile(false);
+
+    if (!res.ok) {
+      setMessage(data.error ?? "No pudimos subir el PDF completo.");
+      return;
+    }
+
+    setMessage("Ebook completo actualizado. Ya se manda automáticamente al confirmar un pago.");
+    setForm((f) => ({ ...f, private_file_path: data.ebook.private_file_path }));
+    fetchEbooks();
+  }
+
   return (
     <div className="flex flex-col lg:flex-row gap-8">
       <div className="lg:w-1/3 flex flex-col gap-3">
@@ -220,7 +248,7 @@ export default function AdminEbooksPage() {
               selectedId === ebook.id
                 ? "border-[#FF9500] bg-[#FF9500]/10"
                 : "border-[#D7E2EA]/15 hover:border-[#D7E2EA]/40"
-            }`}
+            } ${!ebook.published ? "opacity-60" : ""}`}
           >
             <div className="relative w-12 h-16 rounded-md overflow-hidden shrink-0 bg-[#D7E2EA]/10">
               {ebook.cover_image_url && (
@@ -236,7 +264,8 @@ export default function AdminEbooksPage() {
             <div>
               <p className="text-[#D7E2EA] text-sm font-medium">{ebook.title}</p>
               <p className="text-[#D7E2EA]/50 text-xs">
-                {ebook.category} {ebook.featured && "· Destacado"}
+                {ebook.category} {ebook.featured && "· Destacado"}{" "}
+                {!ebook.published && <span className="text-[#FF9500]">· Borrador</span>}
               </p>
             </div>
           </button>
@@ -476,6 +505,33 @@ export default function AdminEbooksPage() {
             {uploadingChapterPdf && <p className="text-[#D7E2EA]/60 text-xs">Subiendo...</p>}
           </div>
 
+          <div className="flex flex-col gap-2 rounded-2xl border border-[#FF9500]/30 p-4">
+            <span className="text-xs uppercase text-[#FF9500]">
+              Ebook completo (PDF, el que se paga) — hasta 60MB
+            </span>
+            <p className="text-[#D7E2EA]/50 text-xs">
+              Es privado: no genera un link público. Se manda automáticamente por mail (con un
+              link temporal) cuando marcás un lead como &quot;pago confirmado&quot; en{" "}
+              <strong>/admin</strong>.
+            </p>
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                accept="application/pdf"
+                disabled={uploadingFullFile}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFullFileUpload(file);
+                }}
+                className="text-[#D7E2EA] text-sm"
+              />
+              {form.private_file_path && (
+                <span className="text-[#D7E2EA]/60 text-xs">✓ Cargado</span>
+              )}
+            </div>
+            {uploadingFullFile && <p className="text-[#D7E2EA]/60 text-xs">Subiendo...</p>}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <label className="flex flex-col gap-1 text-sm text-[#D7E2EA]">
               Categoría
@@ -495,6 +551,22 @@ export default function AdminEbooksPage() {
               Destacarlo en el Home
             </label>
           </div>
+
+          <label
+            className={`flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm ${
+              form.published === false
+                ? "border-[#FF9500]/40 text-[#FF9500]"
+                : "border-[#D7E2EA]/15 text-[#D7E2EA]"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={form.published ?? true}
+              onChange={(e) => setForm({ ...form, published: e.target.checked })}
+            />
+            Publicado (si lo desmarcás, queda en modo borrador: oculto del catálogo, del Home y de
+            su propia página — pero seguís pudiendo editarlo acá)
+          </label>
 
           <div className="grid grid-cols-2 gap-4">
             <label className="flex flex-col gap-1 text-sm text-[#D7E2EA]">
@@ -537,6 +609,16 @@ export default function AdminEbooksPage() {
               type="text"
               value={form.hotmart_affiliate_url ?? ""}
               onChange={(e) => setForm({ ...form, hotmart_affiliate_url: e.target.value })}
+              className="rounded-full border border-[#D7E2EA]/30 bg-transparent px-4 py-2"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm text-[#D7E2EA]">
+            Link de venta en Tiendanube (opcional)
+            <input
+              type="text"
+              value={form.tiendanube_sale_url ?? ""}
+              onChange={(e) => setForm({ ...form, tiendanube_sale_url: e.target.value })}
               className="rounded-full border border-[#D7E2EA]/30 bg-transparent px-4 py-2"
             />
           </label>

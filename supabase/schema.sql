@@ -28,12 +28,16 @@ create table if not exists ebooks (
   current_price numeric(10, 2) not null,
   hotmart_sale_url text not null default '',
   hotmart_affiliate_url text not null default '',
+  tiendanube_sale_url text not null default '',
   bank_alias text not null default '',
   bank_cbu text not null default '',
   bank_name text not null default '',
   -- path dentro del bucket privado "ebook-files" (NUNCA una URL pública fija)
   private_file_path text not null default '',
   featured boolean not null default false,
+  -- false = borrador: queda oculto del sitio público (catálogo, home, página
+  -- del ebook y el form de leads), pero sigue visible y editable en /admin.
+  published boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -56,7 +60,7 @@ create table if not exists leads (
   discount_code text,
   ebook_id uuid references ebooks(id) on delete set null,
   status text not null default 'nuevo' check (status in ('nuevo', 'contactado', 'comprado')),
-  payment_method text check (payment_method in ('hotmart', 'transferencia')),
+  payment_method text check (payment_method in ('hotmart', 'transferencia', 'tiendanube')),
   payment_confirmed_at timestamptz,
   created_at timestamptz not null default now()
 );
@@ -66,6 +70,24 @@ create index if not exists leads_status_idx on leads (status);
 create index if not exists leads_email_idx on leads (email);
 
 alter table leads enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- mail_log: historial de mails enviados a cada lead (manuales y automáticos),
+-- para poder verlo en la ficha del lead y evitar duplicar envíos.
+-- ---------------------------------------------------------------------------
+create table if not exists mail_log (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid not null references leads(id) on delete cascade,
+  subject text not null,
+  -- nombre de la plantilla usada, o una etiqueta fija para los automáticos
+  -- ("Capítulo gratis", "Ebook completo (pago confirmado)")
+  template_name text not null,
+  sent_at timestamptz not null default now()
+);
+
+create index if not exists mail_log_lead_id_idx on mail_log (lead_id);
+
+alter table mail_log enable row level security;
 
 -- ---------------------------------------------------------------------------
 -- mail_templates
@@ -95,6 +117,7 @@ create table if not exists site_settings (
   hero_cta_label text not null default 'Ver Ebooks',
   -- si está vacío, se muestra el ícono por defecto en vez de una imagen
   hero_image_url text not null default '',
+  hero_image_style text not null default 'circle' check (hero_image_style in ('circle', 'banner')),
 
   -- Visibilidad de secciones del Home
   marquee_visible boolean not null default true,
@@ -152,6 +175,10 @@ nmtech solutions',
   contact_email text not null default 'hola@nmtechsolutions.com',
   -- solo números con código de país, ej "5493811234567". Vacío = no se muestra el link de WhatsApp
   contact_whatsapp text not null default '',
+
+  -- Se agrega al final de TODOS los mails que manda el sitio. Variable: {contact_email}
+  email_footer_note text not null default
+    'Si no encontrás este mail en tu bandeja de entrada, revisá la carpeta de spam o correo no deseado. Ante cualquier problema, escribinos a {contact_email}.',
 
   -- Compra y entrega del capítulo (mostrado tras completar el formulario de un ebook)
   buy_heading text not null default 'Comprá el ebook completo',

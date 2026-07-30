@@ -24,7 +24,8 @@ export const adminLoginSchema = z.object({
 export const mailTemplateSchema = z.object({
   name: z.string().trim().min(1).max(100),
   subject: z.string().trim().min(1).max(200),
-  body: z.string().trim().min(1).max(10000),
+  // HTML real (viene del editor rich-text de /admin/plantillas), no texto plano.
+  body: z.string().trim().min(1).max(20000),
 });
 
 export const leadUpdateSchema = z.object({
@@ -33,13 +34,20 @@ export const leadUpdateSchema = z.object({
   topic: z.string().trim().min(1).max(100).optional(),
   interests: z.string().trim().max(500).optional().or(z.literal("")),
   status: z.enum(["nuevo", "contactado", "comprado"]).optional(),
-  paymentMethod: z.enum(["hotmart", "transferencia"]).optional(),
+  paymentMethod: z.enum(["hotmart", "transferencia", "tiendanube"]).optional(),
   markPaymentConfirmed: z.boolean().optional(),
 });
 
 export const sendMailSchema = z.object({
   leadId: z.string().uuid(),
   templateId: z.string().uuid(),
+});
+
+// Lo manda el sitio público cuando el visitante clickea una opción de compra
+// (Hotmart, Tiendanube o "pagar por transferencia"), para saber qué eligió
+// antes incluso de que el pago se confirme.
+export const paymentChoiceSchema = z.object({
+  paymentMethod: z.enum(["hotmart", "transferencia", "tiendanube"]),
 });
 
 export const ebookUpdateSchema = z.object({
@@ -53,10 +61,12 @@ export const ebookUpdateSchema = z.object({
   current_price: z.number().nonnegative().optional(),
   hotmart_sale_url: z.string().trim().max(500).optional().or(z.literal("")),
   hotmart_affiliate_url: z.string().trim().max(500).optional().or(z.literal("")),
+  tiendanube_sale_url: z.string().trim().max(500).optional().or(z.literal("")),
   bank_alias: z.string().trim().max(200).optional().or(z.literal("")),
   bank_cbu: z.string().trim().max(50).optional().or(z.literal("")),
   bank_name: z.string().trim().max(100).optional().or(z.literal("")),
   featured: z.boolean().optional(),
+  published: z.boolean().optional(),
 });
 
 export const discountCodeSchema = z.object({
@@ -93,6 +103,7 @@ export const siteSettingsSchema = z.object({
   hero_heading: z.string().trim().min(1).max(100),
   hero_tagline: z.string().trim().min(1).max(300),
   hero_cta_label: z.string().trim().min(1).max(50),
+  hero_image_style: z.enum(["circle", "banner"]),
 
   marquee_visible: z.boolean(),
   featured_ebook_visible: z.boolean(),
@@ -127,6 +138,8 @@ export const siteSettingsSchema = z.object({
     .regex(/^\d*$/, "Solo números, sin +, espacios ni guiones")
     .optional()
     .or(z.literal("")),
+
+  email_footer_note: z.string().trim().min(1).max(500),
 
   buy_heading: z.string().trim().min(1).max(100),
   transfer_instructions: z.string().trim().min(1).max(500),

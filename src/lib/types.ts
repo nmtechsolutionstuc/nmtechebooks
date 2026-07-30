@@ -1,5 +1,5 @@
 export type LeadStatus = "nuevo" | "contactado" | "comprado";
-export type PaymentMethod = "hotmart" | "transferencia";
+export type PaymentMethod = "hotmart" | "transferencia" | "tiendanube";
 export type LeadIntent = "leer" | "comprar";
 
 export interface Ebook {
@@ -19,11 +19,14 @@ export interface Ebook {
   current_price: number;
   hotmart_sale_url: string;
   hotmart_affiliate_url: string;
+  tiendanube_sale_url: string;
   bank_alias: string;
   bank_cbu: string;
   bank_name: string;
   private_file_path: string;
   featured: boolean;
+  /** false = borrador: oculto del sitio público, sigue visible/editable en /admin. */
+  published: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -89,9 +92,12 @@ export function toPublicEbook(ebook: Ebook): PublicEbook {
 
 /** Datos que se entregan recién después de capturar el lead: capítulo gratis + opciones de compra. */
 export interface PostLeadEbookData {
+  /** Id del lead recién creado, para poder registrar qué medio de pago eligió (ver /api/leads/[id]/payment-choice). */
+  lead_id: string;
   free_chapter: string;
   free_chapter_pdf_url: string;
   hotmart_sale_url: string;
+  tiendanube_sale_url: string;
   bank_alias: string;
   bank_cbu: string;
   bank_name: string;
@@ -107,13 +113,16 @@ export interface PostLeadEbookData {
 }
 
 export function toPostLeadEbookData(
+  leadId: string,
   ebook: Ebook,
   discount: { applied: boolean; percent: number | null; error: string | null; finalPrice: number }
 ): PostLeadEbookData {
   return {
+    lead_id: leadId,
     free_chapter: ebook.free_chapter,
     free_chapter_pdf_url: ebook.free_chapter_pdf_url,
     hotmart_sale_url: ebook.hotmart_sale_url,
+    tiendanube_sale_url: ebook.tiendanube_sale_url,
     bank_alias: ebook.bank_alias,
     bank_cbu: ebook.bank_cbu,
     bank_name: ebook.bank_name,
@@ -152,6 +161,15 @@ export interface MailTemplate {
   updated_at: string;
 }
 
+/** Un mail que efectivamente se mandó a un lead (manual o automático), para mostrar como historial en /admin. */
+export interface MailLogEntry {
+  id: string;
+  lead_id: string;
+  subject: string;
+  template_name: string;
+  sent_at: string;
+}
+
 export interface ContentItem {
   title: string;
   description: string;
@@ -165,6 +183,8 @@ export interface SiteSettings {
   hero_tagline: string;
   hero_cta_label: string;
   hero_image_url: string;
+  /** "circle" = retrato circular con efecto magnet (default). "banner" = imagen ancha, todo el ancho de pantalla. */
+  hero_image_style: "circle" | "banner";
 
   marquee_visible: boolean;
   featured_ebook_visible: boolean;
@@ -195,6 +215,9 @@ export interface SiteSettings {
   contact_email: string;
   /** Número en formato internacional sin "+" ni espacios, ej "5493811234567". Vacío = no se muestra el link de WhatsApp. */
   contact_whatsapp: string;
+
+  /** Se agrega al final de TODOS los mails que manda el sitio. Variable disponible: {contact_email}. */
+  email_footer_note: string;
 
   buy_heading: string;
   transfer_instructions: string;

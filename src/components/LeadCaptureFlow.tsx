@@ -5,7 +5,7 @@ import BotonPrincipal from "@/components/BotonPrincipal";
 import BotonSecundario from "@/components/BotonSecundario";
 import FadeIn from "@/components/FadeIn";
 import { formatPrice } from "@/lib/price";
-import type { PostLeadEbookData, SiteSettings } from "@/lib/types";
+import type { PaymentMethod, PostLeadEbookData, SiteSettings } from "@/lib/types";
 
 type Status = "form" | "loading" | "success" | "error";
 type Intent = "leer" | "comprar";
@@ -27,6 +27,9 @@ export default function LeadCaptureFlow({
   const [errorMessage, setErrorMessage] = useState("");
   const [unlocked, setUnlocked] = useState<PostLeadEbookData | null>(null);
   const [intent, setIntent] = useState<Intent>("leer");
+  // Cuál de los dos botones se clickeó, para mostrar "Enviando..." solo en ese
+  // (antes se mostraba siempre en el botón de "leer gratis", sin importar cuál se tocara).
+  const [submittingIntent, setSubmittingIntent] = useState<Intent | null>(null);
   const [showTransferencia, setShowTransferencia] = useState(false);
   // Cuándo se mostró el formulario: si se envía casi al instante, es casi
   // seguro un bot (un humano tarda al menos un par de segundos en completarlo).
@@ -46,6 +49,7 @@ export default function LeadCaptureFlow({
     const formData = new FormData(e.currentTarget, submitter ?? undefined);
     const submittedIntent: Intent = formData.get("intent") === "comprar" ? "comprar" : "leer";
     setIntent(submittedIntent);
+    setSubmittingIntent(submittedIntent);
 
     const payload = {
       name: String(formData.get("name") ?? ""),
@@ -90,14 +94,45 @@ export default function LeadCaptureFlow({
       ? `https://wa.me/${settings.contact_whatsapp}`
       : null;
 
+    // Deja registrado en el lead qué medio de pago eligió, apenas lo clickea
+    // (no bloquea la navegación al link externo ni el toggle de transferencia).
+    const leadId = unlocked.lead_id;
+    function recordPaymentChoice(paymentMethod: PaymentMethod) {
+      fetch(`/api/leads/${leadId}/payment-choice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentMethod }),
+      }).catch(() => {});
+    }
+
     const buyBlock = (
       <div className="rounded-[30px] border-2 border-[#FF9500]/40 p-6 sm:p-8 flex flex-col gap-4">
         <h3 className="text-[#D7E2EA] font-medium uppercase text-lg">{settings.buy_heading}</h3>
         <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
-          <BotonPrincipal href={unlocked.hotmart_sale_url} target="_blank">
-            Comprar por Hotmart
-          </BotonPrincipal>
-          <BotonSecundario onClick={() => setShowTransferencia((v) => !v)}>
+          {unlocked.hotmart_sale_url && (
+            <BotonPrincipal
+              href={unlocked.hotmart_sale_url}
+              target="_blank"
+              onClick={() => recordPaymentChoice("hotmart")}
+            >
+              Comprar por Hotmart
+            </BotonPrincipal>
+          )}
+          {unlocked.tiendanube_sale_url && (
+            <BotonPrincipal
+              href={unlocked.tiendanube_sale_url}
+              target="_blank"
+              onClick={() => recordPaymentChoice("tiendanube")}
+            >
+              Comprar por Tiendanube
+            </BotonPrincipal>
+          )}
+          <BotonSecundario
+            onClick={() => {
+              setShowTransferencia((v) => !v);
+              recordPaymentChoice("transferencia");
+            }}
+          >
             Pagar por transferencia
           </BotonSecundario>
         </div>
@@ -182,10 +217,7 @@ export default function LeadCaptureFlow({
       <FadeIn>
         <div className="flex flex-col gap-8 max-w-2xl mx-auto lg:mx-0 text-center lg:text-left">
           {intent === "comprar" ? (
-            <>
-              {buyBlock}
-              {chapterBlock}
-            </>
+            buyBlock
           ) : (
             <>
               {chapterBlock}
@@ -284,10 +316,12 @@ export default function LeadCaptureFlow({
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
           <BotonPrincipal type="submit" name="intent" value="leer" disabled={status === "loading"}>
-            {status === "loading" ? "Enviando..." : "Quiero el primer capítulo gratis"}
+            {status === "loading" && submittingIntent === "leer"
+              ? "Enviando..."
+              : "Quiero el primer capítulo gratis"}
           </BotonPrincipal>
           <BotonSecundario type="submit" name="intent" value="comprar" disabled={status === "loading"}>
-            Ya lo quiero comprar
+            {status === "loading" && submittingIntent === "comprar" ? "Enviando..." : "Ya lo quiero comprar"}
           </BotonSecundario>
         </div>
       </form>

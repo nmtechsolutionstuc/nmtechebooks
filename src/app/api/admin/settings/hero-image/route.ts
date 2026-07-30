@@ -48,3 +48,18 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ settings: data });
 }
+
+export async function DELETE() {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("site_settings")
+    .upsert({ id: 1, hero_image_url: "", updated_at: new Date().toISOString() })
+    .select("*")
+    .maybeSingle();
+
+  if (error || !data) {
+    return NextResponse.json({ error: "No pudimos quitar la imagen." }, { status: 500 });
+  }
+
+  return NextResponse.json({ settings: data });
+}

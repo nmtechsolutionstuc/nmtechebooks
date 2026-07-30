@@ -1,6 +1,7 @@
 import "server-only";
-import { sendMail, applyTemplateVariables } from "@/lib/mail";
+import { sendMail, applyTemplateVariables, getEbookUrl } from "@/lib/mail";
 import { createSignedEbookFileUrl } from "@/lib/storage";
+import { logMailSent } from "@/lib/mail-log";
 import type { Ebook, Lead, SiteSettings } from "@/lib/types";
 
 /**
@@ -16,10 +17,11 @@ export async function notifyPaymentConfirmed(lead: Lead, ebook: Ebook) {
   }
 
   const downloadUrl = await createSignedEbookFileUrl(ebook.private_file_path);
+  const subject = `¡Ya podés descargar "${ebook.title}"!`;
 
   await sendMail({
     to: lead.email,
-    subject: `¡Ya podés descargar "${ebook.title}"!`,
+    subject,
     html: `
       <p>Hola ${escapeHtml(lead.name)},</p>
       <p>Confirmamos tu pago de <strong>${escapeHtml(ebook.title)}</strong>. Descargalo acá:</p>
@@ -28,6 +30,8 @@ export async function notifyPaymentConfirmed(lead: Lead, ebook: Ebook) {
       <p>Gracias por tu compra,<br />nmtech solutions</p>
     `,
   });
+
+  await logMailSent(lead.id, subject, "Ebook completo (pago confirmado)");
 }
 
 /**
@@ -37,11 +41,16 @@ export async function notifyPaymentConfirmed(lead: Lead, ebook: Ebook) {
  * /admin → Configuración.
  */
 export async function sendFreeChapterEmail(
-  lead: Pick<Lead, "name" | "email">,
+  lead: Pick<Lead, "id" | "name" | "email">,
   ebook: Ebook,
   settings: SiteSettings
 ) {
-  const vars = { nombre: lead.name, ebook: ebook.title, capitulo: ebook.free_chapter };
+  const vars = {
+    nombre: lead.name,
+    ebook: ebook.title,
+    capitulo: ebook.free_chapter,
+    link: getEbookUrl(ebook.slug),
+  };
   const subject = applyTemplateVariables(settings.free_chapter_email_subject, vars);
   let html = applyTemplateVariables(settings.free_chapter_email_body, vars).replaceAll(
     "\n",
@@ -53,6 +62,7 @@ export async function sendFreeChapterEmail(
   }
 
   await sendMail({ to: lead.email, subject, html });
+  await logMailSent(lead.id, subject, "Capítulo gratis");
 }
 
 function escapeHtml(value: string): string {

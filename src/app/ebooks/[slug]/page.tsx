@@ -38,22 +38,20 @@ export default async function EbookDetailPage({ params }: PageProps) {
     <main className="flex flex-col flex-1" style={{ overflowX: "clip" }}>
       <Navbar />
 
-      <section className="px-5 sm:px-8 md:px-10 py-16 grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-6xl mx-auto w-full items-center">
+      <section className="px-5 sm:px-8 md:px-10 py-16 grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-6xl mx-auto w-full">
         <FadeIn x={-40}>
-          <div className="relative w-full aspect-[3/4] max-w-xs mx-auto rounded-[30px] overflow-hidden">
-            <Image
-              src={ebook.cover_image_url}
-              alt={ebook.title}
-              fill
-              className="object-cover"
-              sizes="(min-width: 1024px) 25vw, 70vw"
-              priority
-            />
-          </div>
-        </FadeIn>
-
-        <FadeIn x={40}>
           <div className="flex flex-col gap-5">
+            <div className="relative w-full aspect-[3/4] max-w-[240px] mx-auto rounded-[30px] overflow-hidden mt-6 mb-4">
+              <Image
+                src={ebook.cover_image_url}
+                alt={ebook.title}
+                fill
+                className="object-cover"
+                sizes="240px"
+                priority
+              />
+            </div>
+
             <span className="text-[#D7E2EA]/60 uppercase tracking-widest text-sm">
               {ebook.category}
             </span>
@@ -74,14 +72,16 @@ export default async function EbookDetailPage({ params }: PageProps) {
               size="lg"
             />
             <TermsNotice text={settings.terms_notice_text} />
+          </div>
+        </FadeIn>
 
-            <div className="mt-6">
-              <LeadCaptureFlow
-                ebookSlug={ebook.slug}
-                defaultTopic={ebook.category}
-                settings={settings}
-              />
-            </div>
+        <FadeIn x={40}>
+          <div className="rounded-[30px] border-2 border-[#D7E2EA]/15 p-5 sm:p-6 lg:sticky lg:top-24">
+            <LeadCaptureFlow
+              ebookSlug={ebook.slug}
+              defaultTopic={ebook.category}
+              settings={settings}
+            />
           </div>
         </FadeIn>
       </section>

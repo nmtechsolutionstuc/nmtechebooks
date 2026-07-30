@@ -96,8 +96,9 @@ cp .env.example .env.local
 | `GMAIL_USER` | Cuenta de Gmail desde la que se manda todo |
 | `GMAIL_APP_PASSWORD` | Contraseña de aplicación de esa cuenta (no la contraseña normal) |
 | `GMAIL_FROM_NAME` | Nombre que se muestra como remitente (opcional, ej. "nmtech solutions") |
+| `SITE_URL` | URL pública del sitio, sin `/` al final (para armar links absolutos en los mails, variable `{link}`) |
 
-En Vercel, cargar las mismas variables en **Project Settings → Environment Variables**.
+En Vercel, cargar las mismas variables en **Project Settings → Environment Variables**. Ahí `SITE_URL` tiene que ser el dominio real de producción.
 
 ## 4. Desarrollo local
 

@@ -73,18 +73,22 @@ export async function POST(request: Request) {
   const discount = await validateDiscountCode(discountCode, ebook);
 
   const supabase = getSupabaseAdmin();
-  const { error: insertError } = await supabase.from("leads").insert({
-    name,
-    email,
-    topic,
-    interests: interests ?? "",
-    intent,
-    discount_code: discount.appliedCode,
-    ebook_id: ebook.id,
-    status: "nuevo",
-  });
+  const { data: insertedLead, error: insertError } = await supabase
+    .from("leads")
+    .insert({
+      name,
+      email,
+      topic,
+      interests: interests ?? "",
+      intent,
+      discount_code: discount.appliedCode,
+      ebook_id: ebook.id,
+      status: "nuevo",
+    })
+    .select("id")
+    .single();
 
-  if (insertError) {
+  if (insertError || !insertedLead) {
     console.error("insert lead failed", insertError);
     return NextResponse.json(
       { error: "No pudimos guardar tu solicitud. Probá de nuevo en un rato." },
@@ -92,10 +96,11 @@ export async function POST(request: Request) {
     );
   }
 
-  if (ebook.free_chapter || ebook.free_chapter_pdf_url) {
+  // Si eligió ir directo a comprar, no le mandamos el capítulo gratis: no lo pidió.
+  if (intent === "leer" && (ebook.free_chapter || ebook.free_chapter_pdf_url)) {
     try {
       const settings = await getSiteSettings();
-      await sendFreeChapterEmail({ name, email }, ebook, settings);
+      await sendFreeChapterEmail({ id: insertedLead.id, name, email }, ebook, settings);
     } catch (err) {
       // El capítulo ya se muestra en pantalla igual: que falle el mail no
       // debe hacer fallar la respuesta al usuario.
@@ -103,5 +108,5 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ ebook: toPostLeadEbookData(ebook, discount) });
+  return NextResponse.json({ ebook: toPostLeadEbookData(insertedLead.id, ebook, discount) });
 }

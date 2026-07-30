@@ -6,38 +6,62 @@ import Magnet from "@/components/Magnet";
 import BotonPrincipal from "@/components/BotonPrincipal";
 import type { SiteSettings } from "@/lib/types";
 
+function HeroIconFallback() {
+  return (
+    <div
+      className="w-full h-full rounded-full flex items-center justify-center"
+      style={{
+        background: "radial-gradient(circle, rgba(255,149,0,0.15) 0%, rgba(255,149,0,0) 70%)",
+      }}
+    >
+      <BookOpen className="w-1/2 h-1/2 text-[#FFD166]" strokeWidth={1} />
+    </div>
+  );
+}
+
 export default function HeroSection({ settings }: { settings: SiteSettings }) {
+  const isBanner = settings.hero_image_style === "banner" && settings.hero_image_url;
+
   return (
     <section className="h-screen flex flex-col relative" style={{ overflowX: "clip" }}>
       <Navbar />
 
       <div className="flex-1 flex items-center justify-center relative">
-        <Magnet
-          padding={150}
-          strength={5}
-          className="relative z-0 flex items-center justify-center w-[220px] h-[220px] sm:w-[300px] sm:h-[300px] md:w-[380px] md:h-[380px] rounded-full overflow-hidden"
-        >
-          {settings.hero_image_url ? (
+        {isBanner ? (
+          <Magnet
+            padding={400}
+            strength={25}
+            className="relative w-screen left-1/2 -translate-x-1/2 h-[220px] sm:h-[300px] md:h-[380px] overflow-hidden"
+          >
             <Image
               src={settings.hero_image_url}
               alt=""
               fill
-              className="object-cover rounded-full"
-              sizes="380px"
+              className="object-cover"
+              sizes="100vw"
               priority
             />
-          ) : (
-            <div
-              className="w-full h-full rounded-full flex items-center justify-center"
-              style={{
-                background:
-                  "radial-gradient(circle, rgba(255,149,0,0.15) 0%, rgba(255,149,0,0) 70%)",
-              }}
-            >
-              <BookOpen className="w-1/2 h-1/2 text-[#FFD166]" strokeWidth={1} />
-            </div>
-          )}
-        </Magnet>
+          </Magnet>
+        ) : (
+          <Magnet
+            padding={150}
+            strength={5}
+            className="relative z-0 flex items-center justify-center w-[220px] h-[220px] sm:w-[300px] sm:h-[300px] md:w-[380px] md:h-[380px] rounded-full overflow-hidden"
+          >
+            {settings.hero_image_url ? (
+              <Image
+                src={settings.hero_image_url}
+                alt=""
+                fill
+                className="object-cover rounded-full"
+                sizes="380px"
+                priority
+              />
+            ) : (
+              <HeroIconFallback />
+            )}
+          </Magnet>
+        )}
       </div>
 
       <div className="px-4 flex flex-col items-center gap-2">

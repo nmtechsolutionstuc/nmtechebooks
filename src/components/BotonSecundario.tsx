@@ -34,6 +34,7 @@ export default function BotonSecundario({
         href={href}
         target={target}
         rel={target === "_blank" ? "noopener noreferrer" : undefined}
+        onClick={onClick}
         className={`${baseClasses} ${className}`}
       >
         {children}

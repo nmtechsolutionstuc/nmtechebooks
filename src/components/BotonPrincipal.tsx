@@ -41,6 +41,7 @@ export default function BotonPrincipal({
         href={href}
         target={target}
         rel={target === "_blank" ? "noopener noreferrer" : undefined}
+        onClick={onClick}
         className={`${baseClasses} ${className}`}
         style={style}
       >

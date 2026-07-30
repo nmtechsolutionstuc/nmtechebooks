@@ -80,7 +80,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         {
           lead: updatedLead,
           warning:
-            "El lead se marcó como pagado pero no pudimos mandar el mail automático. Revisá la configuración de Resend o el archivo del ebook.",
+            "El lead se marcó como pagado pero no pudimos mandar el mail automático. Revisá la configuración de Gmail o el archivo del ebook.",
         },
         { status: 207 }
       );

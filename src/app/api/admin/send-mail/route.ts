@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { sendMailSchema } from "@/lib/validation";
-import { sendMail, applyTemplateVariables } from "@/lib/mail";
+import { sendMail, applyTemplateVariables, getEbookUrl } from "@/lib/mail";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { logMailSent } from "@/lib/mail-log";
 import type { Lead, MailTemplate } from "@/lib/types";
 
 export async function POST(request: Request) {
-  // Protege la cuota diaria/mensual de Resend ante un envío masivo por error o abuso.
+  // Protege la cuota diaria de Gmail ante un envío masivo por error o abuso.
   const rateLimit = await checkRateLimit(`send-mail:${getClientIp(request)}`, {
     limit: 30,
     windowSeconds: 60 * 60,
@@ -34,9 +35,9 @@ export async function POST(request: Request) {
 
   const { data: lead } = await supabase
     .from("leads")
-    .select("*, ebooks(title)")
+    .select("*, ebooks(title, slug)")
     .eq("id", parsed.data.leadId)
-    .maybeSingle<Lead & { ebooks: { title: string } | null }>();
+    .maybeSingle<Lead & { ebooks: { title: string; slug: string } | null }>();
 
   if (!lead) {
     return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 });
@@ -52,19 +53,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Plantilla no encontrada" }, { status: 404 });
   }
 
-  const vars = { nombre: lead.name, ebook: lead.ebooks?.title ?? "" };
+  const vars = {
+    nombre: lead.name,
+    ebook: lead.ebooks?.title ?? "",
+    link: lead.ebooks?.slug ? getEbookUrl(lead.ebooks.slug) : "",
+  };
   const subject = applyTemplateVariables(template.subject, vars);
-  const html = applyTemplateVariables(template.body, vars).replaceAll("\n", "<br />");
+  // template.body ya es HTML real (viene del editor rich-text de /admin/plantillas).
+  const html = applyTemplateVariables(template.body, vars);
 
   try {
     await sendMail({ to: lead.email, subject, html });
   } catch (err) {
     console.error("send-mail failed", err);
     return NextResponse.json(
-      { error: "No pudimos enviar el mail. Revisá la configuración de Resend." },
+      { error: "No pudimos enviar el mail. Revisá la configuración de Gmail." },
       { status: 500 }
     );
   }
+
+  await logMailSent(lead.id, subject, template.name);
 
   return NextResponse.json({ ok: true });
 }

@@ -66,6 +66,7 @@ export default function AdminConfiguracionPage() {
       hero_heading: settings.hero_heading,
       hero_tagline: settings.hero_tagline,
       hero_cta_label: settings.hero_cta_label,
+      hero_image_style: settings.hero_image_style,
       marquee_visible: settings.marquee_visible,
       featured_ebook_visible: settings.featured_ebook_visible,
       why_visible: settings.why_visible,
@@ -86,6 +87,7 @@ export default function AdminConfiguracionPage() {
       contact_text: settings.contact_text,
       contact_email: settings.contact_email,
       contact_whatsapp: settings.contact_whatsapp,
+      email_footer_note: settings.email_footer_note,
       buy_heading: settings.buy_heading,
       transfer_instructions: settings.transfer_instructions,
       chapter_heading: settings.chapter_heading,
@@ -137,6 +139,23 @@ export default function AdminConfiguracionPage() {
     }
     setSettings(data.settings);
     setMessage("Imagen del hero actualizada.");
+  }
+
+  async function handleRemoveHeroImage() {
+    if (!window.confirm("¿Quitar la imagen del hero? Vuelve a mostrarse el ícono de libro.")) return;
+    setUploadingHero(true);
+    setMessage("");
+
+    const res = await fetch("/api/admin/settings/hero-image", { method: "DELETE" });
+    const data = await res.json();
+    setUploadingHero(false);
+
+    if (!res.ok) {
+      setMessage(data.error ?? "No pudimos quitar la imagen.");
+      return;
+    }
+    setSettings(data.settings);
+    setMessage("Imagen del hero quitada.");
   }
 
   if (!settings) {
@@ -194,15 +213,35 @@ export default function AdminConfiguracionPage() {
             className={inputClass}
           />
         </label>
+        <label className="flex flex-col gap-1 text-sm text-[#D7E2EA]">
+          Forma de la imagen del hero
+          <select
+            value={settings.hero_image_style}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                hero_image_style: e.target.value as "circle" | "banner",
+              })
+            }
+            className={inputClass}
+          >
+            <option value="circle">Círculo (retrato, como está ahora)</option>
+            <option value="banner">Banner ancho (todo el ancho de pantalla)</option>
+          </select>
+        </label>
         <div className="flex items-center gap-4">
-          <div className="relative w-20 h-20 rounded-full overflow-hidden bg-[#D7E2EA]/10 shrink-0">
+          <div
+            className={`relative bg-[#D7E2EA]/10 shrink-0 overflow-hidden ${
+              settings.hero_image_style === "banner" ? "w-32 h-16 rounded-lg" : "w-20 h-20 rounded-full"
+            }`}
+          >
             {settings.hero_image_url && (
               <Image
                 src={settings.hero_image_url}
                 alt=""
                 fill
                 className="object-cover"
-                sizes="80px"
+                sizes="128px"
               />
             )}
           </div>
@@ -220,7 +259,18 @@ export default function AdminConfiguracionPage() {
               }}
               className="text-[#D7E2EA] text-sm"
             />
-            {uploadingHero && <p className="text-[#D7E2EA]/60 text-xs">Subiendo...</p>}
+            <div className="flex items-center gap-3">
+              {uploadingHero && <p className="text-[#D7E2EA]/60 text-xs">Subiendo...</p>}
+              {settings.hero_image_url && !uploadingHero && (
+                <button
+                  type="button"
+                  onClick={handleRemoveHeroImage}
+                  className="text-red-400 text-xs uppercase tracking-wider self-start"
+                >
+                  Quitar imagen
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </Section>
@@ -371,6 +421,16 @@ export default function AdminConfiguracionPage() {
             }
             placeholder="5493811234567"
             className={inputClass}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-[#D7E2EA]">
+          Nota al pie de TODOS los mails que manda el sitio (variable disponible:{" "}
+          {"{contact_email}"})
+          <textarea
+            value={settings.email_footer_note}
+            onChange={(e) => setSettings({ ...settings, email_footer_note: e.target.value })}
+            rows={2}
+            className={textareaClass}
           />
         </label>
       </Section>
@@ -556,7 +616,7 @@ export default function AdminConfiguracionPage() {
 
       <Section
         title="Mail del capítulo gratis"
-        description="Se manda automáticamente apenas alguien completa el formulario (si el ebook tiene capítulo gratis cargado en /admin/ebooks). Variables: {nombre}, {ebook}, {capitulo}."
+        description="Se manda automáticamente apenas alguien completa el formulario (si el ebook tiene capítulo gratis cargado en /admin/ebooks). Variables: {nombre}, {ebook}, {capitulo}, {link} (link a la página del ebook)."
       >
         <label className="flex flex-col gap-1 text-sm text-[#D7E2EA]">
           Asunto

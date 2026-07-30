@@ -1,5 +1,7 @@
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
+import { getSiteSettings } from "@/lib/data";
+import { wrapEmailHtml } from "@/lib/email-template";
 
 /**
  * Se manda todo desde la cuenta de Gmail real de nmtech solutions (así los
@@ -48,6 +50,42 @@ export function applyTemplateVariables(text: string, vars: Record<string, string
   );
 }
 
+/**
+ * Dominio público del sitio, para armar links absolutos dentro de los mails
+ * (una URL relativa como "/ebooks/x" no funciona en un cliente de mail).
+ * En producción hay que setear SITE_URL a la URL real (ver .env.example).
+ */
+function getSiteUrl(): string {
+  return (process.env.SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+}
+
+/** Link absoluto a la página de venta de un ebook, para la variable {link} de las plantillas. */
+export function getEbookUrl(slug: string): string {
+  return `${getSiteUrl()}/ebooks/${slug}`;
+}
+
+/**
+ * Envuelve el cuerpo de CUALQUIER mail que manda el sitio (capítulo gratis,
+ * pago confirmado, o los que se mandan a mano con plantilla desde /admin) en
+ * un header y footer con la marca del sitio — así no hace falta agregarlo a
+ * mano en cada plantilla. Colores, nombre y datos de contacto salen de
+ * /admin → Configuración (mismo componente que usa la vista previa de
+ * /admin/plantillas, para que se vea igual a lo que termina llegando).
+ */
+async function buildBrandedHtml(bodyHtml: string): Promise<string> {
+  const settings = await getSiteSettings();
+  const footerNote = applyTemplateVariables(settings.email_footer_note, {
+    contact_email: settings.contact_email,
+  });
+  return wrapEmailHtml(bodyHtml, {
+    brandName: settings.hero_kicker || "nmtech solutions",
+    contactEmail: settings.contact_email,
+    contactWhatsapp: settings.contact_whatsapp,
+    siteUrl: getSiteUrl(),
+    footerNote,
+  });
+}
+
 export async function sendMail({
   to,
   subject,
@@ -61,10 +99,19 @@ export async function sendMail({
   const user = process.env.GMAIL_USER;
   const displayName = process.env.GMAIL_FROM_NAME || "nmtech solutions";
 
+  let fullHtml = html;
+  try {
+    fullHtml = await buildBrandedHtml(html);
+  } catch (err) {
+    // Si por lo que sea falla traer la configuración, mandamos el mail
+    // igual sin el diseño, en vez de no mandarlo.
+    console.error("buildBrandedHtml failed", err);
+  }
+
   await transporter.sendMail({
     from: `"${displayName}" <${user}>`,
     to,
     subject,
-    html,
+    html: fullHtml,
   });
 }

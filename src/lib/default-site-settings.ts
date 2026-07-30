@@ -10,6 +10,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
     "software, datos e ia explicados por quienes los aplican todos los días — probá gratis el primer capítulo",
   hero_cta_label: "Ver Ebooks",
   hero_image_url: "",
+  hero_image_style: "circle",
 
   marquee_visible: true,
   featured_ebook_visible: true,
@@ -62,6 +63,9 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
     "¿Tenés dudas sobre alguno de nuestros ebooks, o necesitás que te ayudemos con desarrollo de software o automatización a medida? Escribinos, te respondemos nosotros mismos.",
   contact_email: "hola@nmtechsolutions.com",
   contact_whatsapp: "",
+
+  email_footer_note:
+    "Si no encontrás este mail en tu bandeja de entrada, revisá la carpeta de spam o correo no deseado. Ante cualquier problema, escribinos a {contact_email}.",
 
   buy_heading: "Comprá el ebook completo",
   transfer_instructions:

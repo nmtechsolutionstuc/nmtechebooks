@@ -88,6 +88,40 @@ export async function uploadFreeChapterPdf(
   return { url: publicUrlData.publicUrl };
 }
 
+const MAX_FULL_EBOOK_SIZE_BYTES = 60 * 1024 * 1024; // 60MB (~100 páginas con imágenes)
+
+/**
+ * Sube el PDF completo del ebook (el que se paga) al bucket PRIVADO y
+ * devuelve el path guardado dentro del bucket (no una URL: es privado, el
+ * link de descarga se genera recién al confirmar el pago, ver
+ * createSignedEbookFileUrl más abajo).
+ */
+export async function uploadFullEbookFile(
+  slug: string,
+  file: File
+): Promise<{ path: string } | { error: string }> {
+  if (file.type !== "application/pdf") {
+    return { error: "Tiene que ser un archivo PDF." };
+  }
+  if (file.size > MAX_FULL_EBOOK_SIZE_BYTES) {
+    return { error: "El PDF no puede pesar más de 60MB." };
+  }
+
+  const supabase = getSupabaseAdmin();
+  const path = `${slug}/completo-${Date.now()}.pdf`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(EBOOK_FILES_BUCKET)
+    .upload(path, file, { contentType: "application/pdf", upsert: true });
+
+  if (uploadError) {
+    console.error("full ebook pdf upload failed", uploadError);
+    return { error: "No pudimos subir el PDF." };
+  }
+
+  return { path };
+}
+
 /**
  * Genera una URL firmada y temporal para descargar el ebook completo desde
  * el bucket privado. Nunca se expone una URL pública/fija del archivo:
