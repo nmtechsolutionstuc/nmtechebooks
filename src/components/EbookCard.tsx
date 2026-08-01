@@ -25,7 +25,7 @@ export default function EbookCard({ ebook }: { ebook: PublicEbook }) {
         <h3 className="text-[#D7E2EA] font-medium uppercase text-lg leading-snug">
           {ebook.title}
         </h3>
-        <p className="text-[#D7E2EA]/70 text-sm font-light leading-relaxed line-clamp-2">
+        <p className="text-[#D7E2EA]/70 text-sm font-light leading-relaxed line-clamp-2 whitespace-pre-line">
           {ebook.short_description}
         </p>
         <PriceTag

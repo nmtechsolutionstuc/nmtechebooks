@@ -59,11 +59,11 @@ export default async function EbookDetailPage({ params }: PageProps) {
               {ebook.title}
             </h1>
             {ebook.promo_message && (
-              <p className="border-l-2 border-[#FF9500] pl-4 text-[#D7E2EA] font-medium italic leading-relaxed">
+              <p className="border-l-2 border-[#FF9500] pl-4 text-[#D7E2EA] font-medium italic leading-relaxed whitespace-pre-line">
                 {ebook.promo_message}
               </p>
             )}
-            <p className="text-[#D7E2EA]/70 font-light leading-relaxed">
+            <p className="text-[#D7E2EA]/70 font-light leading-relaxed whitespace-pre-line">
               {ebook.long_description}
             </p>
             <PriceTag
