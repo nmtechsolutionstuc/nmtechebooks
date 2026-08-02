@@ -142,6 +142,32 @@ export default function AdminLeadsPage() {
     fetchLeads();
   }
 
+  async function handleDeleteMailLogEntry(entry: MailLogEntry) {
+    if (!selectedLead) return;
+    if (
+      !window.confirm(
+        `¿Borrar del historial el mail "${entry.subject}" (${new Date(entry.sent_at).toLocaleString("es-AR")})? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+
+    setActionLoading(true);
+    setActionMessage("");
+    const res = await fetch(`/api/admin/leads/${selectedLead.id}/mail-log/${entry.id}`, {
+      method: "DELETE",
+    });
+    setActionLoading(false);
+
+    if (!res.ok) {
+      const data = await res.json();
+      setActionMessage(data.error ?? "No pudimos borrar el registro.");
+      return;
+    }
+
+    fetchMailLog(selectedLead.id);
+  }
+
   async function handleSendMail() {
     if (!selectedLead || !selectedTemplateId) return;
     setActionLoading(true);
@@ -405,9 +431,19 @@ export default function AdminLeadsPage() {
                       <p className="text-[#D7E2EA]">{entry.subject}</p>
                       <p className="text-[#D7E2EA]/50 text-xs">{entry.template_name}</p>
                     </div>
-                    <span className="text-[#D7E2EA]/50 text-xs shrink-0">
-                      {new Date(entry.sent_at).toLocaleString("es-AR")}
-                    </span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-[#D7E2EA]/50 text-xs">
+                        {new Date(entry.sent_at).toLocaleString("es-AR")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMailLogEntry(entry)}
+                        disabled={actionLoading}
+                        className="text-red-400 uppercase text-xs tracking-wider disabled:opacity-50"
+                      >
+                        Borrar
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
