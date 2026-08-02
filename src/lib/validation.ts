@@ -41,6 +41,9 @@ export const leadUpdateSchema = z.object({
 export const sendMailSchema = z.object({
   leadId: z.string().uuid(),
   templateId: z.string().uuid(),
+  // Valores para variables propias de la plantilla (ej. {user}/{pass} de
+  // "Credenciales QueryQuest"), más allá de {nombre}/{ebook}/{link}.
+  variables: z.record(z.string(), z.string().trim().max(500)).optional(),
 });
 
 // Lo manda el sitio público cuando el visitante clickea una opción de compra

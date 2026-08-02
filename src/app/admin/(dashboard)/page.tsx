@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import type { Lead, LeadStatus, MailLogEntry, MailTemplate, PaymentMethod } from "@/lib/types";
+import { extractCustomTemplateVariables } from "@/lib/template-variables";
 
 type LeadRow = Lead & { ebooks: { id: string; title: string; slug: string } | null };
 
@@ -28,6 +29,9 @@ export default function AdminLeadsPage() {
   const [topicFilter, setTopicFilter] = useState("");
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  // Valores para variables propias de la plantilla elegida (ej. {user}/{pass}
+  // de "Credenciales QueryQuest"), aparte de {nombre}/{ebook}/{link}.
+  const [templateVariables, setTemplateVariables] = useState<Record<string, string>>({});
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("hotmart");
   const [actionMessage, setActionMessage] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
@@ -69,6 +73,18 @@ export default function AdminLeadsPage() {
 
   const selectedLead = leads.find((l) => l.id === selectedLeadId) ?? null;
 
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) ?? null;
+  const requiredTemplateVars = useMemo(
+    () =>
+      selectedTemplate
+        ? extractCustomTemplateVariables(`${selectedTemplate.subject} ${selectedTemplate.body}`)
+        : [],
+    [selectedTemplate]
+  );
+  const missingTemplateVars = requiredTemplateVars.some(
+    (name) => !templateVariables[name]?.trim()
+  );
+
   const fetchMailLog = useCallback(async (leadId: string) => {
     setMailLogLoading(true);
     const res = await fetch(`/api/admin/leads/${leadId}/mail-log`);
@@ -88,6 +104,8 @@ export default function AdminLeadsPage() {
     // Precarga el medio de pago que ya eligió el cliente en el sitio público (si eligió alguno).
     setPaymentMethod(lead.payment_method ?? "hotmart");
     setActionMessage("");
+    setSelectedTemplateId("");
+    setTemplateVariables({});
     fetchMailLog(lead.id);
   }
 
@@ -169,13 +187,17 @@ export default function AdminLeadsPage() {
   }
 
   async function handleSendMail() {
-    if (!selectedLead || !selectedTemplateId) return;
+    if (!selectedLead || !selectedTemplateId || missingTemplateVars) return;
     setActionLoading(true);
     setActionMessage("");
     const res = await fetch("/api/admin/send-mail", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ leadId: selectedLead.id, templateId: selectedTemplateId }),
+      body: JSON.stringify({
+        leadId: selectedLead.id,
+        templateId: selectedTemplateId,
+        variables: templateVariables,
+      }),
     });
     const data = await res.json();
     setActionLoading(false);
@@ -347,7 +369,10 @@ export default function AdminLeadsPage() {
               <label className="text-xs uppercase text-[#D7E2EA]/60">Plantilla de mail</label>
               <select
                 value={selectedTemplateId}
-                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedTemplateId(e.target.value);
+                  setTemplateVariables({});
+                }}
                 className="rounded-full border border-[#D7E2EA]/30 bg-transparent px-4 py-2 text-[#D7E2EA] text-sm"
               >
                 <option value="">Elegir plantilla</option>
@@ -358,9 +383,25 @@ export default function AdminLeadsPage() {
                 ))}
               </select>
             </div>
+
+            {requiredTemplateVars.map((name) => (
+              <label key={name} className="flex flex-col gap-1 text-sm text-[#D7E2EA]">
+                {`{${name}}`}
+                <input
+                  type="text"
+                  required
+                  value={templateVariables[name] ?? ""}
+                  onChange={(e) =>
+                    setTemplateVariables((v) => ({ ...v, [name]: e.target.value }))
+                  }
+                  className="rounded-full border border-[#D7E2EA]/30 bg-transparent px-4 py-2"
+                />
+              </label>
+            ))}
+
             <button
               onClick={handleSendMail}
-              disabled={!selectedTemplateId || actionLoading}
+              disabled={!selectedTemplateId || missingTemplateVars || actionLoading}
               className="rounded-full bg-[#FF9500] text-[#0C0C0C] font-medium uppercase text-xs tracking-wider px-5 py-2 disabled:opacity-50"
             >
               Enviar mail

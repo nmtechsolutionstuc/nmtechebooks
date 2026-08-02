@@ -4,6 +4,7 @@ import { sendMailSchema } from "@/lib/validation";
 import { sendMail, applyTemplateVariables, getEbookUrl } from "@/lib/mail";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { logMailSent } from "@/lib/mail-log";
+import { extractCustomTemplateVariables } from "@/lib/template-variables";
 import type { Lead, MailTemplate } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -53,7 +54,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Plantilla no encontrada" }, { status: 404 });
   }
 
+  // Variables propias de la plantilla (ej. {user}/{pass}): obligatorias si la
+  // plantilla las usa, sin importar cuáles mande el cliente.
+  const requiredVars = extractCustomTemplateVariables(`${template.subject} ${template.body}`);
+  const customVars: Record<string, string> = {};
+  for (const name of requiredVars) {
+    const value = parsed.data.variables?.[name]?.trim();
+    if (!value) {
+      return NextResponse.json(
+        { error: `Falta completar "${name}" para esta plantilla.` },
+        { status: 400 }
+      );
+    }
+    customVars[name] = value;
+  }
+
   const vars = {
+    ...customVars,
+    // Van al final: son las que completa el sistema, no deben poder pisarse.
     nombre: lead.name,
     ebook: lead.ebooks?.title ?? "",
     link: lead.ebooks?.slug ? getEbookUrl(lead.ebooks.slug) : "",
