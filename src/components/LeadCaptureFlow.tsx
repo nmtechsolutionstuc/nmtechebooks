@@ -34,6 +34,18 @@ export default function LeadCaptureFlow({
   // Cuándo se mostró el formulario: si se envía casi al instante, es casi
   // seguro un bot (un humano tarda al menos un par de segundos en completarlo).
   const [renderedAt] = useState(() => Date.now());
+  // Datos del envío original, para poder crear un lead nuevo de "comprar" si
+  // el visitante pidió el capítulo gratis y después toca un botón de compra.
+  const [submittedData, setSubmittedData] = useState<{
+    name: string;
+    email: string;
+    topic: string;
+    interests: string;
+    discountCode: string;
+  } | null>(null);
+  // Id del lead de "comprar" creado al tocar el primer botón de compra
+  // (para no crear uno nuevo por cada botón si toca varios).
+  const [buyLeadId, setBuyLeadId] = useState<string | null>(null);
 
   const topics = settings.lead_topics;
   const initialTopic = topics.includes(defaultTopic) ? defaultTopic : topics[0];
@@ -62,6 +74,13 @@ export default function LeadCaptureFlow({
       renderedAt,
       discountCode: String(formData.get("discountCode") ?? ""),
     };
+    setSubmittedData({
+      name: payload.name,
+      email: payload.email,
+      topic: payload.topic,
+      interests: payload.interests,
+      discountCode: payload.discountCode,
+    });
 
     try {
       const res = await fetch("/api/leads", {
@@ -94,15 +113,54 @@ export default function LeadCaptureFlow({
       ? `https://wa.me/${settings.contact_whatsapp}`
       : null;
 
-    // Deja registrado en el lead qué medio de pago eligió, apenas lo clickea
-    // (no bloquea la navegación al link externo ni el toggle de transferencia).
+    // Deja registrado qué medio de pago eligió, apenas lo clickea (no bloquea
+    // la navegación al link externo ni el toggle de transferencia).
+    // Si ya había pedido "comprar" directamente, alcanza con actualizar ese
+    // mismo lead. Pero si primero pidió el capítulo gratis y recién acá se
+    // decide a comprar, eso es una intención nueva: se registra como un lead
+    // aparte (con intent "comprar"), sin tocar el lead original de "leer".
     const leadId = unlocked.lead_id;
-    function recordPaymentChoice(paymentMethod: PaymentMethod) {
-      fetch(`/api/leads/${leadId}/payment-choice`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentMethod }),
-      }).catch(() => {});
+    async function recordPaymentChoice(paymentMethod: PaymentMethod) {
+      try {
+        if (intent === "comprar") {
+          await fetch(`/api/leads/${leadId}/payment-choice`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paymentMethod }),
+          });
+          return;
+        }
+
+        let targetLeadId = buyLeadId;
+        if (!targetLeadId && submittedData) {
+          const res = await fetch("/api/leads", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...submittedData,
+              intent: "comprar",
+              ebookSlug,
+              website: "",
+              renderedAt,
+            }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            targetLeadId = (data.ebook as PostLeadEbookData).lead_id;
+            setBuyLeadId(targetLeadId);
+          }
+        }
+
+        if (targetLeadId) {
+          await fetch(`/api/leads/${targetLeadId}/payment-choice`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paymentMethod }),
+          });
+        }
+      } catch {
+        // Nunca debe bloquear la navegación al link de compra ni el toggle de transferencia.
+      }
     }
 
     const buyBlock = (
