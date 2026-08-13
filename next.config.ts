@@ -5,8 +5,10 @@ const contentSecurityPolicy = [
   "img-src 'self' data: https:",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  "connect-src 'self' https://*.supabase.co https://api.resend.com",
+  // connect.facebook.net: script del Píxel de Meta (se carga solo si el visitante acepta cookies).
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://connect.facebook.net",
+  // www.facebook.com / connect.facebook.net: beacons de tracking del Píxel de Meta.
+  "connect-src 'self' https://*.supabase.co https://www.facebook.com https://connect.facebook.net",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

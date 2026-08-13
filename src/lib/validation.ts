@@ -51,6 +51,14 @@ export const sendMailSchema = z.object({
 // antes incluso de que el pago se confirme.
 export const paymentChoiceSchema = z.object({
   paymentMethod: z.enum(["hotmart", "transferencia", "tiendanube"]),
+  // Mismo id generado en el navegador para el evento fbq() correspondiente,
+  // así Meta deduplica el evento de navegador con el de Conversions API.
+  eventId: z.string().trim().max(100).optional(),
+  value: z.number().nonnegative().optional(),
+  pageUrl: z.string().trim().max(500).optional(),
+  // Mismo dato que ya manda el Píxel del navegador (content_name), para que
+  // el evento espejo de Conversions API quede igual de completo.
+  ebookSlug: z.string().trim().max(200).optional(),
 });
 
 export const ebookUpdateSchema = z.object({
@@ -160,6 +168,11 @@ export const siteSettingsSchema = z.object({
 
   terms_heading: z.string().trim().min(1).max(100),
   terms_content: z.string().trim().min(1).max(10000),
+
+  privacy_heading: z.string().trim().min(1).max(100),
+  privacy_content: z.string().trim().min(1).max(20000),
+
+  transfer_telegram_contact: z.string().trim().max(100).optional().or(z.literal("")),
 
   affiliates_heading: z.string().trim().min(1).max(100),
   affiliates_intro: z.string().trim().min(1).max(1000),

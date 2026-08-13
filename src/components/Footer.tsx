@@ -6,9 +6,17 @@ export default function Footer({ text }: { text: string }) {
       <span>
         © {new Date().getFullYear()} {text}
       </span>
-      <Link href="/terminos" className="text-xs normal-case underline underline-offset-2 hover:text-[#D7E2EA]">
-        Términos y Condiciones
-      </Link>
+      <div className="flex gap-4">
+        <Link href="/terminos" className="text-xs normal-case underline underline-offset-2 hover:text-[#D7E2EA]">
+          Términos y Condiciones
+        </Link>
+        <Link
+          href="/politica-de-privacidad"
+          className="text-xs normal-case underline underline-offset-2 hover:text-[#D7E2EA]"
+        >
+          Política de Privacidad
+        </Link>
+      </div>
     </footer>
   );
 }

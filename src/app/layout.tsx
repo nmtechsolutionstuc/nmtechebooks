@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Kanit } from "next/font/google";
+import AnalyticsGate from "@/components/analytics/AnalyticsGate";
 import "./globals.css";
 
 const kanit = Kanit({
@@ -12,6 +13,10 @@ export const metadata: Metadata = {
   title: "nmtech solutions -- Biblioteca de Ebooks",
   description:
     "Ebooks propios sobre desarrollo de software, automatizaciones e IA aplicada a negocios, creados por nmtech solutions.",
+  other: {
+    // Verificación de dominio en Meta Business Manager (Seguridad e idoneidad > Dominios).
+    "facebook-domain-verification": "6532vsde7573412alovixkej1z30es",
+  },
 };
 
 export default function RootLayout({
@@ -26,6 +31,7 @@ export default function RootLayout({
         style={{ overflowX: "clip" }}
       >
         {children}
+        <AnalyticsGate />
       </body>
     </html>
   );

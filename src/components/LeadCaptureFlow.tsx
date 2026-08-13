@@ -5,6 +5,7 @@ import BotonPrincipal from "@/components/BotonPrincipal";
 import BotonSecundario from "@/components/BotonSecundario";
 import FadeIn from "@/components/FadeIn";
 import { formatPrice } from "@/lib/price";
+import { trackMetaEvent } from "@/lib/meta-pixel";
 import type { PaymentMethod, PostLeadEbookData, SiteSettings } from "@/lib/types";
 
 type Status = "form" | "loading" | "success" | "error";
@@ -13,6 +14,45 @@ type Intent = "leer" | "comprar";
 const fieldLabel = "text-xs uppercase tracking-wider text-[#D7E2EA]/60";
 const fieldInput =
   "rounded-2xl border-2 border-[#D7E2EA]/30 bg-transparent px-5 py-3 text-[#D7E2EA] placeholder:text-[#D7E2EA]/40 focus:outline-none focus:border-[#FF9500]";
+
+interface ProofOption {
+  label: string;
+  href: string;
+  target?: string;
+}
+
+/**
+ * Todas las formas de mandar el comprobante que el admin dejó cargadas
+ * (mail, WhatsApp, Telegram) — se muestra una por cada una que tenga dato
+ * configurado, para que el comprador elija con cuál prefiere escribir.
+ */
+function buildTransferProofOptions(settings: SiteSettings): ProofOption[] {
+  const message = "Hola! Te mando el comprobante de mi transferencia.";
+  const options: ProofOption[] = [];
+
+  if (settings.contact_email) {
+    options.push({
+      label: "Enviar por mail",
+      href: `mailto:${settings.contact_email}?subject=${encodeURIComponent("Comprobante de transferencia")}`,
+    });
+  }
+  if (settings.contact_whatsapp) {
+    options.push({
+      label: "Enviar por WhatsApp",
+      href: `https://wa.me/${settings.contact_whatsapp}?text=${encodeURIComponent(message)}`,
+      target: "_blank",
+    });
+  }
+  if (settings.transfer_telegram_contact) {
+    options.push({
+      label: "Enviar por Telegram",
+      href: `https://t.me/${settings.transfer_telegram_contact}?text=${encodeURIComponent(message)}`,
+      target: "_blank",
+    });
+  }
+
+  return options;
+}
 
 export default function LeadCaptureFlow({
   ebookSlug,
@@ -106,27 +146,51 @@ export default function LeadCaptureFlow({
   }
 
   if (status === "success" && unlocked) {
-    const mailHref = `mailto:${settings.contact_email}?subject=${encodeURIComponent(
-      "Comprobante de transferencia"
-    )}`;
-    const whatsappHref = settings.contact_whatsapp
-      ? `https://wa.me/${settings.contact_whatsapp}`
-      : null;
+    const proofOptions = buildTransferProofOptions(settings);
 
-    // Deja registrado qué medio de pago eligió, apenas lo clickea (no bloquea
-    // la navegación al link externo ni el toggle de transferencia).
+    // Deja registrado qué medio de pago eligió y dispara el evento de Meta
+    // InitiateCheckout (mismo eventId para navegador + Conversions API, así
+    // Meta deduplica en vez de contarlo dos veces), apenas clickea un botón
+    // de compra — no bloquea la navegación al link externo.
     // Si ya había pedido "comprar" directamente, alcanza con actualizar ese
     // mismo lead. Pero si primero pidió el capítulo gratis y recién acá se
     // decide a comprar, eso es una intención nueva: se registra como un lead
     // aparte (con intent "comprar"), sin tocar el lead original de "leer".
     const leadId = unlocked.lead_id;
-    async function recordPaymentChoice(paymentMethod: PaymentMethod) {
+    async function recordPaymentChoice(paymentMethod: PaymentMethod, value: number) {
+      const eventId =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random()}`;
+
+      trackMetaEvent(
+        "InitiateCheckout",
+        {
+          value,
+          currency: "ARS",
+          content_name: ebookSlug,
+          content_type: "product",
+          // Parámetro custom para poder filtrar por canal al crear las
+          // conversiones personalizadas en el Administrador de Eventos.
+          channel: paymentMethod,
+        },
+        eventId
+      );
+
+      const payload = JSON.stringify({
+        paymentMethod,
+        eventId,
+        value,
+        pageUrl: typeof window !== "undefined" ? window.location.href : undefined,
+        ebookSlug,
+      });
+
       try {
         if (intent === "comprar") {
           await fetch(`/api/leads/${leadId}/payment-choice`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paymentMethod }),
+            body: payload,
           });
           return;
         }
@@ -155,7 +219,7 @@ export default function LeadCaptureFlow({
           await fetch(`/api/leads/${targetLeadId}/payment-choice`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paymentMethod }),
+            body: payload,
           });
         }
       } catch {
@@ -171,7 +235,7 @@ export default function LeadCaptureFlow({
             <BotonPrincipal
               href={unlocked.hotmart_sale_url}
               target="_blank"
-              onClick={() => recordPaymentChoice("hotmart")}
+              onClick={() => recordPaymentChoice("hotmart", unlocked.transfer_original_price)}
             >
               Comprar por Hotmart
             </BotonPrincipal>
@@ -180,17 +244,12 @@ export default function LeadCaptureFlow({
             <BotonPrincipal
               href={unlocked.tiendanube_sale_url}
               target="_blank"
-              onClick={() => recordPaymentChoice("tiendanube")}
+              onClick={() => recordPaymentChoice("tiendanube", unlocked.transfer_original_price)}
             >
               Comprar por Tiendanube
             </BotonPrincipal>
           )}
-          <BotonSecundario
-            onClick={() => {
-              setShowTransferencia((v) => !v);
-              recordPaymentChoice("transferencia");
-            }}
-          >
+          <BotonSecundario onClick={() => setShowTransferencia((v) => !v)}>
             Pagar por transferencia
           </BotonSecundario>
         </div>
@@ -222,21 +281,23 @@ export default function LeadCaptureFlow({
             <p><strong>Alias:</strong> {unlocked.bank_alias}</p>
             <p><strong>CBU:</strong> {unlocked.bank_cbu}</p>
             <p className="mt-3">{settings.transfer_instructions}</p>
-            <div className="flex flex-wrap gap-4 justify-center lg:justify-start mt-2">
-              <a href={mailHref} className="text-[#FF9500] underline underline-offset-2">
-                Escribinos por mail
-              </a>
-              {whatsappHref && (
-                <a
-                  href={whatsappHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#FF9500] underline underline-offset-2"
-                >
-                  Escribinos por WhatsApp
-                </a>
-              )}
-            </div>
+            {proofOptions.length > 0 && (
+              <div className="mt-3">
+                <p className="text-[#D7E2EA]/50 text-xs mb-2">Ya pagué, mandar comprobante:</p>
+                <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
+                  {proofOptions.map((option) => (
+                    <BotonSecundario
+                      key={option.label}
+                      href={option.href}
+                      target={option.target}
+                      onClick={() => recordPaymentChoice("transferencia", unlocked.transfer_price)}
+                    >
+                      {option.label}
+                    </BotonSecundario>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

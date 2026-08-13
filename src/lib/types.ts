@@ -237,6 +237,17 @@ export interface SiteSettings {
   terms_heading: string;
   terms_content: string;
 
+  privacy_heading: string;
+  privacy_content: string;
+
+  /**
+   * Usuario/handle de Telegram sin "@" (ej. "nmtechsolutions"), o un bot.
+   * Junto con contact_email y contact_whatsapp, define qué botones de "enviar
+   * comprobante" se muestran tras pagar por transferencia — se muestra uno
+   * por cada uno de los tres que tenga valor cargado, no hay que elegir "el" canal.
+   */
+  transfer_telegram_contact: string;
+
   affiliates_heading: string;
   affiliates_intro: string;
   affiliates_steps: ContentItem[];

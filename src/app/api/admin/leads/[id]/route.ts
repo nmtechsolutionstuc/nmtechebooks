@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { leadUpdateSchema } from "@/lib/validation";
 import { notifyPaymentConfirmed } from "@/lib/notify";
+import { getEbookUrl } from "@/lib/mail";
+import { sendMetaCapiEvent } from "@/lib/meta-capi";
+import { validateDiscountCode } from "@/lib/discount";
 import type { Ebook, Lead } from "@/lib/types";
 
 interface RouteParams {
@@ -84,6 +87,25 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         },
         { status: 207 }
       );
+    }
+
+    // Evento Purchase a Meta, solo para transferencia: es el único canal sin
+    // un checkout externo que lo dispare solo (Hotmart/Tiendanube ya lo
+    // hacen desde su propia plataforma — mandarlo también acá para esos dos
+    // duplicaría la conversión). No hay sesión del comprador en este momento
+    // (esto lo confirma el admin, no el comprador), así que va sin IP/UA,
+    // marcado como "system_generated".
+    if (updatedLead.payment_method === "transferencia") {
+      const discount = await validateDiscountCode(updatedLead.discount_code, ebook);
+      await sendMetaCapiEvent({
+        eventName: "Purchase",
+        eventSourceUrl: getEbookUrl(ebook.slug),
+        email: updatedLead.email,
+        value: discount.finalPrice,
+        channel: "transferencia",
+        contentName: ebook.slug,
+        actionSource: "system_generated",
+      });
     }
   }
 

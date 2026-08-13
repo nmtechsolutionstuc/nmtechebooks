@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getSiteUrl } from "@/lib/mail";
 import { paymentChoiceSchema } from "@/lib/validation";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { sendMetaCapiEvent } from "@/lib/meta-capi";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -38,15 +40,33 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 
   const supabase = getSupabaseAdmin();
-  const { error } = await supabase
+  const { data: lead, error } = await supabase
     .from("leads")
     .update({ payment_method: parsed.data.paymentMethod })
-    .eq("id", id);
+    .eq("id", id)
+    .select("email")
+    .maybeSingle();
 
   if (error) {
     console.error("payment-choice update failed", error);
     return NextResponse.json({ error: "No pudimos guardar tu elección." }, { status: 500 });
   }
+
+  // Espejo server-side del evento InitiateCheckout que ya disparó el Píxel
+  // en el navegador (mismo eventId, para que Meta los deduplique). Se espera
+  // (no "void") porque en una función serverless el request puede cortarse
+  // apenas se manda la respuesta, matando un fetch que quedó pendiente.
+  await sendMetaCapiEvent({
+    eventName: "InitiateCheckout",
+    eventId: parsed.data.eventId,
+    eventSourceUrl: parsed.data.pageUrl || getSiteUrl(),
+    clientIp: getClientIp(request),
+    userAgent: request.headers.get("user-agent") ?? "",
+    email: lead?.email,
+    value: parsed.data.value,
+    channel: parsed.data.paymentMethod,
+    contentName: parsed.data.ebookSlug,
+  });
 
   return NextResponse.json({ ok: true });
 }

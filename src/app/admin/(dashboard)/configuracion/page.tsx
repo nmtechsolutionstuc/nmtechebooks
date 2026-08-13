@@ -101,6 +101,9 @@ export default function AdminConfiguracionPage() {
       terms_notice_text: settings.terms_notice_text,
       terms_heading: settings.terms_heading,
       terms_content: settings.terms_content,
+      privacy_heading: settings.privacy_heading,
+      privacy_content: settings.privacy_content,
+      transfer_telegram_contact: settings.transfer_telegram_contact,
       affiliates_heading: settings.affiliates_heading,
       affiliates_intro: settings.affiliates_intro,
       affiliates_steps: settings.affiliates_steps,
@@ -449,8 +452,8 @@ export default function AdminConfiguracionPage() {
           />
         </label>
         <label className="flex flex-col gap-1 text-sm text-[#D7E2EA]">
-          Instrucciones de transferencia (los links de mail/WhatsApp se agregan solos, con los
-          datos de arriba)
+          Instrucciones de transferencia (los botones de enviar comprobante se agregan solos, uno
+          por cada dato de contacto que tengas cargado)
           <textarea
             value={settings.transfer_instructions}
             onChange={(e) => setSettings({ ...settings, transfer_instructions: e.target.value })}
@@ -458,6 +461,29 @@ export default function AdminConfiguracionPage() {
             className={textareaClass}
           />
         </label>
+
+        <label className="flex flex-col gap-1 text-sm text-[#D7E2EA]">
+          Usuario o bot de Telegram para recibir comprobantes (sin el &quot;@&quot;, ej.
+          nmtechsolutions) — opcional
+          <input
+            type="text"
+            value={settings.transfer_telegram_contact}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                transfer_telegram_contact: e.target.value.replace(/^@+/, ""),
+              })
+            }
+            placeholder="nmtechsolutions"
+            className={inputClass}
+          />
+        </label>
+        <p className="text-[#D7E2EA]/50 text-xs">
+          Después de pagar por transferencia, el comprador ve un botón para mandar el comprobante
+          por cada uno de estos que tengas cargado: Mail y WhatsApp (sección &quot;Contacto&quot;,
+          más arriba) y Telegram (acá arriba). Si cargás los tres, ve los tres — elige el que
+          prefiera.
+        </p>
         <label className="flex flex-col gap-1 text-sm text-[#D7E2EA]">
           Título del bloque del capítulo gratis
           <input
@@ -566,6 +592,30 @@ export default function AdminConfiguracionPage() {
           <textarea
             value={settings.terms_content}
             onChange={(e) => setSettings({ ...settings, terms_content: e.target.value })}
+            rows={14}
+            className={`${textareaClass} font-mono text-xs`}
+          />
+        </label>
+      </Section>
+
+      <Section
+        title="Política de Privacidad"
+        description="Página /politica-de-privacidad, con link desde el footer y el banner de cookies. Se redactó cubriendo la Ley 25.326 (Argentina) — si el negocio crece o cambia, conviene que la revise un abogado."
+      >
+        <label className="flex flex-col gap-1 text-sm text-[#D7E2EA]">
+          Título de la página
+          <input
+            type="text"
+            value={settings.privacy_heading}
+            onChange={(e) => setSettings({ ...settings, privacy_heading: e.target.value })}
+            className={inputClass}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-[#D7E2EA]">
+          Texto completo de la Política de Privacidad
+          <textarea
+            value={settings.privacy_content}
+            onChange={(e) => setSettings({ ...settings, privacy_content: e.target.value })}
             rows={14}
             className={`${textareaClass} font-mono text-xs`}
           />

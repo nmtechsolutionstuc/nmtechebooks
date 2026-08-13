@@ -55,7 +55,7 @@ export function applyTemplateVariables(text: string, vars: Record<string, string
  * (una URL relativa como "/ebooks/x" no funciona en un cliente de mail).
  * En producción hay que setear SITE_URL a la URL real (ver .env.example).
  */
-function getSiteUrl(): string {
+export function getSiteUrl(): string {
   return (process.env.SITE_URL || "http://localhost:3000").replace(/\/$/, "");
 }
 
