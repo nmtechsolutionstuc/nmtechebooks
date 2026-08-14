@@ -101,6 +101,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         eventName: "Purchase",
         eventSourceUrl: getEbookUrl(ebook.slug),
         email: updatedLead.email,
+        fullName: updatedLead.name,
+        externalId: updatedLead.id,
         value: discount.finalPrice,
         channel: "transferencia",
         contentName: ebook.slug,

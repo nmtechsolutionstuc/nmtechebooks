@@ -44,7 +44,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     .from("leads")
     .update({ payment_method: parsed.data.paymentMethod })
     .eq("id", id)
-    .select("email")
+    .select("name, email")
     .maybeSingle();
 
   if (error) {
@@ -63,6 +63,8 @@ export async function POST(request: Request, { params }: RouteParams) {
     clientIp: getClientIp(request),
     userAgent: request.headers.get("user-agent") ?? "",
     email: lead?.email,
+    fullName: lead?.name,
+    externalId: id,
     value: parsed.data.value,
     channel: parsed.data.paymentMethod,
     contentName: parsed.data.ebookSlug,

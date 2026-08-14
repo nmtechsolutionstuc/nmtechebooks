@@ -17,6 +17,18 @@ function sha256(value: string): string {
   return createHash("sha256").update(value.trim().toLowerCase()).digest("hex");
 }
 
+/**
+ * No tenemos nombre/apellido por separado (el form solo pide "nombre
+ * completo"), así que partimos por el primer espacio: mejor esto —le suma
+ * puntos de calidad de coincidencia a Meta— que no mandar nada.
+ */
+function splitName(fullName: string): { firstName: string; lastName: string } {
+  const trimmed = fullName.trim();
+  const spaceIndex = trimmed.indexOf(" ");
+  if (spaceIndex === -1) return { firstName: trimmed, lastName: "" };
+  return { firstName: trimmed.slice(0, spaceIndex), lastName: trimmed.slice(spaceIndex + 1) };
+}
+
 export async function sendMetaCapiEvent({
   eventName,
   eventId,
@@ -24,6 +36,8 @@ export async function sendMetaCapiEvent({
   clientIp,
   userAgent,
   email,
+  fullName,
+  externalId,
   value,
   currency = "ARS",
   channel,
@@ -38,6 +52,10 @@ export async function sendMetaCapiEvent({
   clientIp?: string;
   userAgent?: string;
   email?: string;
+  /** Nombre completo del lead — se parte en nombre/apellido para sumar señales de coincidencia además del mail. */
+  fullName?: string;
+  /** Id propio del lead (nuestra base), como identificador estable adicional para Meta. */
+  externalId?: string;
   value?: number;
   currency?: string;
   /** hotmart / tiendanube / transferencia — mismo parámetro custom que manda el Píxel del navegador. */
@@ -62,6 +80,12 @@ export async function sendMetaCapiEvent({
   if (clientIp) userData.client_ip_address = clientIp;
   if (userAgent) userData.client_user_agent = userAgent;
   if (email) userData.em = [sha256(email)];
+  if (fullName) {
+    const { firstName, lastName } = splitName(fullName);
+    if (firstName) userData.fn = [sha256(firstName)];
+    if (lastName) userData.ln = [sha256(lastName)];
+  }
+  if (externalId) userData.external_id = [sha256(externalId)];
 
   const customData: Record<string, unknown> = {};
   if (typeof value === "number") {
