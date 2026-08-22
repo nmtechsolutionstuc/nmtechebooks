@@ -27,6 +27,8 @@ export interface Ebook {
   featured: boolean;
   /** false = borrador: oculto del sitio público, sigue visible/editable en /admin. */
   published: boolean;
+  /** false = solo se puede pedir la versión/capítulo gratis: se oculta toda opción de compra para este ebook. */
+  sales_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -51,6 +53,7 @@ export type PublicEbook = Pick<
   | "current_price"
   | "hotmart_affiliate_url"
   | "featured"
+  | "sales_enabled"
   | "created_at"
   | "updated_at"
 >;
@@ -69,6 +72,7 @@ export function toPublicEbook(ebook: Ebook): PublicEbook {
     current_price,
     hotmart_affiliate_url,
     featured,
+    sales_enabled,
     created_at,
     updated_at,
   } = ebook;
@@ -85,6 +89,7 @@ export function toPublicEbook(ebook: Ebook): PublicEbook {
     current_price,
     hotmart_affiliate_url,
     featured,
+    sales_enabled,
     created_at,
     updated_at,
   };

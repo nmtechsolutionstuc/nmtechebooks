@@ -111,6 +111,7 @@ export default function AdminEbooksPage() {
         bank_name: form.bank_name,
         featured: form.featured,
         published: form.published,
+        sales_enabled: form.sales_enabled,
       }),
     });
     const data = await res.json();
@@ -265,7 +266,8 @@ export default function AdminEbooksPage() {
               <p className="text-[#D7E2EA] text-sm font-medium">{ebook.title}</p>
               <p className="text-[#D7E2EA]/50 text-xs">
                 {ebook.category} {ebook.featured && "· Destacado"}{" "}
-                {!ebook.published && <span className="text-[#FF9500]">· Borrador</span>}
+                {!ebook.published && <span className="text-[#FF9500]">· Borrador</span>}{" "}
+                {!ebook.sales_enabled && <span className="text-[#FF9500]">· Solo gratis</span>}
               </p>
             </div>
           </button>
@@ -566,6 +568,23 @@ export default function AdminEbooksPage() {
             />
             Publicado (si lo desmarcás, queda en modo borrador: oculto del catálogo, del Home y de
             su propia página — pero seguís pudiendo editarlo acá)
+          </label>
+
+          <label
+            className={`flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm ${
+              form.sales_enabled === false
+                ? "border-[#FF9500]/40 text-[#FF9500]"
+                : "border-[#D7E2EA]/15 text-[#D7E2EA]"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={form.sales_enabled ?? true}
+              onChange={(e) => setForm({ ...form, sales_enabled: e.target.checked })}
+            />
+            Venta habilitada (si lo desmarcás, se oculta el botón &quot;Ya lo quiero comprar&quot; y
+            cualquier opción de pago para este ebook — solo se puede pedir el capítulo/versión
+            gratis)
           </label>
 
           <div className="grid grid-cols-2 gap-4">

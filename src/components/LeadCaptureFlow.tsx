@@ -58,10 +58,13 @@ export default function LeadCaptureFlow({
   ebookSlug,
   defaultTopic,
   settings,
+  salesEnabled,
 }: {
   ebookSlug: string;
   defaultTopic: string;
   settings: SiteSettings;
+  /** false = este ebook todavía no se puede comprar: solo se ofrece el capítulo/versión gratis. */
+  salesEnabled: boolean;
 }) {
   const [status, setStatus] = useState<Status>("form");
   const [errorMessage, setErrorMessage] = useState("");
@@ -335,13 +338,17 @@ export default function LeadCaptureFlow({
     return (
       <FadeIn>
         <div className="flex flex-col gap-8 max-w-2xl mx-auto lg:mx-0 text-center lg:text-left">
-          {intent === "comprar" ? (
-            buyBlock
+          {salesEnabled ? (
+            intent === "comprar" ? (
+              buyBlock
+            ) : (
+              <>
+                {chapterBlock}
+                {buyBlock}
+              </>
+            )
           ) : (
-            <>
-              {chapterBlock}
-              {buyBlock}
-            </>
+            chapterBlock
           )}
         </div>
       </FadeIn>
@@ -351,7 +358,9 @@ export default function LeadCaptureFlow({
   return (
     <div className="max-w-md flex flex-col gap-4 mx-auto lg:mx-0 text-center lg:text-left">
       <h3 className="text-[#D7E2EA] font-medium uppercase text-lg">
-        ¿Querés leer el primer capítulo gratis, o comprarlo directamente?
+        {salesEnabled
+          ? "¿Querés leer el primer capítulo gratis, o comprarlo directamente?"
+          : "Completá tus datos para conseguirlo gratis"}
       </h3>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {/* Honeypot anti-bots: campo invisible que un humano nunca completa */}
@@ -413,21 +422,25 @@ export default function LeadCaptureFlow({
           />
         </label>
 
-        <label className="flex flex-col gap-1">
-          <span className={fieldLabel}>
-            {settings.discount_field_label}{" "}
-            {settings.discount_field_hint && (
-              <span className="normal-case text-[#D7E2EA]/40">{settings.discount_field_hint}</span>
-            )}
-          </span>
-          <input
-            type="text"
-            name="discountCode"
-            placeholder={settings.discount_field_placeholder}
-            maxLength={50}
-            className={fieldInput}
-          />
-        </label>
+        {salesEnabled && (
+          <label className="flex flex-col gap-1">
+            <span className={fieldLabel}>
+              {settings.discount_field_label}{" "}
+              {settings.discount_field_hint && (
+                <span className="normal-case text-[#D7E2EA]/40">
+                  {settings.discount_field_hint}
+                </span>
+              )}
+            </span>
+            <input
+              type="text"
+              name="discountCode"
+              placeholder={settings.discount_field_placeholder}
+              maxLength={50}
+              className={fieldInput}
+            />
+          </label>
+        )}
 
         {status === "error" && (
           <p className="text-red-400 text-sm">{errorMessage}</p>
@@ -437,11 +450,17 @@ export default function LeadCaptureFlow({
           <BotonPrincipal type="submit" name="intent" value="leer" disabled={status === "loading"}>
             {status === "loading" && submittingIntent === "leer"
               ? "Enviando..."
-              : "Quiero el primer capítulo gratis"}
+              : salesEnabled
+                ? "Quiero el primer capítulo gratis"
+                : "Quiero mi ejemplar gratis"}
           </BotonPrincipal>
-          <BotonSecundario type="submit" name="intent" value="comprar" disabled={status === "loading"}>
-            {status === "loading" && submittingIntent === "comprar" ? "Enviando..." : "Ya lo quiero comprar"}
-          </BotonSecundario>
+          {salesEnabled && (
+            <BotonSecundario type="submit" name="intent" value="comprar" disabled={status === "loading"}>
+              {status === "loading" && submittingIntent === "comprar"
+                ? "Enviando..."
+                : "Ya lo quiero comprar"}
+            </BotonSecundario>
+          )}
         </div>
       </form>
     </div>

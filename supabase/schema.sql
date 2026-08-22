@@ -38,6 +38,9 @@ create table if not exists ebooks (
   -- false = borrador: queda oculto del sitio público (catálogo, home, página
   -- del ebook y el form de leads), pero sigue visible y editable en /admin.
   published boolean not null default true,
+  -- false = solo se puede pedir la versión/capítulo gratis: se oculta el
+  -- botón "Ya lo quiero comprar" y cualquier opción de pago para este ebook.
+  sales_enabled boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

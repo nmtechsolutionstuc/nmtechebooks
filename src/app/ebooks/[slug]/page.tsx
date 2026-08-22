@@ -81,6 +81,7 @@ export default async function EbookDetailPage({ params }: PageProps) {
               ebookSlug={ebook.slug}
               defaultTopic={ebook.category}
               settings={settings}
+              salesEnabled={ebook.sales_enabled}
             />
           </div>
         </FadeIn>

@@ -78,6 +78,7 @@ export const ebookUpdateSchema = z.object({
   bank_name: z.string().trim().max(100).optional().or(z.literal("")),
   featured: z.boolean().optional(),
   published: z.boolean().optional(),
+  sales_enabled: z.boolean().optional(),
 });
 
 export const discountCodeSchema = z.object({
